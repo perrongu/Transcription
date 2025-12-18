@@ -98,7 +98,7 @@ Transcrire.bat "file.mp4"
 
 ### Ce que fait le script d'installation / What the install script does
 
-1. **Python** : Télécharge Python embeddable (Windows) ou vérifie Python 3.10+ (macOS/Linux)
+1. **Python** : Télécharge Python embeddable (Windows) ou vérifie Python 3.9+ (macOS/Linux)
 2. **Environnement virtuel** : Crée `tools/venv/` avec toutes les dépendances Python
 3. **ffmpeg** : Télécharge ffmpeg portable dans `tools/ffmpeg/`
 4. **Modèle Whisper** : Pré-télécharge le modèle large-v3 (~6 Go) dans `models/`

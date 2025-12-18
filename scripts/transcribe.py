@@ -22,6 +22,7 @@ import shutil
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
+from typing import Optional, List, Tuple, Dict
 
 # Constantes
 DEFAULT_UPDATE_INTERVAL = 5.0
@@ -145,7 +146,7 @@ def format_speed(speed: float) -> str:
 # AUDIO
 # ============================================================================
 
-def find_executable(candidates: list[str]) -> str | None:
+def find_executable(candidates: List[str]) -> Optional[str]:
     """Retourne le premier exécutable existant parmi une liste."""
     for candidate in candidates:
         if not candidate:
@@ -159,7 +160,7 @@ def find_executable(candidates: list[str]) -> str | None:
     return None
 
 
-def detect_ffmpeg_binaries() -> tuple[str, str]:
+def detect_ffmpeg_binaries() -> Tuple[str, str]:
     """Détecte ffmpeg/ffprobe locaux dans tools/ffmpeg ou dans le PATH."""
     ffmpeg_candidates = [
         os.environ.get("FFMPEG_BIN"),
@@ -200,7 +201,7 @@ def probe_audio_duration(audio_path: Path, ffprobe_cmd: str) -> float:
         return 0.0
 
 
-def extract_audio(input_path: Path, output_wav: Path, ffmpeg_cmd: str, ffprobe_cmd: str, sample_minutes: float | None = None) -> float:
+def extract_audio(input_path: Path, output_wav: Path, ffmpeg_cmd: str, ffprobe_cmd: str, sample_minutes: Optional[float] = None) -> float:
     """
     Extrait l'audio en WAV mono 16kHz PCM.
     Retourne la durée en secondes.
@@ -308,7 +309,7 @@ class ProgressTracker:
         if self.last_text:
             tqdm.write(f"    ↳ Dernier/Last: \"{self.last_text}\"")
 
-    def finish(self) -> dict:
+    def finish(self) -> Dict:
         """Termine la progression et retourne les stats finales."""
         # S'assurer que la barre n'excède pas 100% (évite le clamping warning)
         remaining = max(0, self.total_duration - self.pbar.n)
@@ -343,8 +344,8 @@ def transcribe_audio(
     compute_type: str = "auto",
     beam_size: int = 5,
     vad_filter: bool = True,
-    model_dir: Path | None = None,
-) -> tuple[list[dict], dict, dict]:
+    model_dir: Optional[Path] = None,
+) -> Tuple[List[Dict], Dict, Dict]:
     """
     Transcrit l'audio avec faster-whisper.
     Retourne (segments, info, progress_stats).
@@ -418,7 +419,7 @@ def transcribe_audio(
 # EXPORT
 # ============================================================================
 
-def write_txt(segments: list[dict], output_path: Path):
+def write_txt(segments: List[Dict], output_path: Path):
     """Écrit le transcript brut (texte seul)."""
     with open(output_path, "w", encoding="utf-8") as f:
         for seg in segments:
@@ -426,7 +427,7 @@ def write_txt(segments: list[dict], output_path: Path):
     print(f"  ✓ {output_path.name}")
 
 
-def write_srt(segments: list[dict], output_path: Path):
+def write_srt(segments: List[Dict], output_path: Path):
     """Écrit au format SRT."""
     with open(output_path, "w", encoding="utf-8") as f:
         for i, seg in enumerate(segments, 1):
@@ -436,7 +437,7 @@ def write_srt(segments: list[dict], output_path: Path):
     print(f"  ✓ {output_path.name}")
 
 
-def write_vtt(segments: list[dict], output_path: Path):
+def write_vtt(segments: List[Dict], output_path: Path):
     """Écrit au format WebVTT."""
     with open(output_path, "w", encoding="utf-8") as f:
         f.write("WEBVTT\n\n")
@@ -447,7 +448,7 @@ def write_vtt(segments: list[dict], output_path: Path):
     print(f"  ✓ {output_path.name}")
 
 
-def write_json(segments: list[dict], info: dict, output_path: Path):
+def write_json(segments: List[Dict], info: Dict, output_path: Path):
     """Écrit les segments + métadonnées en JSON."""
     data = {
         "info": info,
@@ -462,7 +463,7 @@ def write_json(segments: list[dict], info: dict, output_path: Path):
 # STATS FINALES
 # ============================================================================
 
-def print_final_stats(segments: list[dict], audio_duration: float, info: dict, progress_stats: dict):
+def print_final_stats(segments: List[Dict], audio_duration: float, info: Dict, progress_stats: Dict):
     """Affiche le résumé final détaillé."""
     total_words = sum(len(seg["text"].split()) for seg in segments)
     transcribed_duration = segments[-1]["end"] if segments else 0

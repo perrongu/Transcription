@@ -16,21 +16,31 @@ PYTHON_BIN="${PYTHON_BIN:-python3}"
 REQUIREMENTS="$ROOT/requirements.txt"
 
 echo "== Déploiement clé-en-main (macOS/Linux) =="
-echo "[1/5] Vérification Python (>=3.10)..."
+echo "[1/5] Vérification Python (>=3.9)..."
 if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
-  echo "Python 3.10+ est requis. Installez-le puis relancez ce script."
+  echo "Python 3.9+ est requis. Installez-le puis relancez ce script."
   exit 1
 fi
 
-python_version="$($PYTHON_BIN - <<'PY'
+# Vérification de version Python (comparaison numérique)
+python_ok="$($PYTHON_BIN - <<'PY'
 import sys
-print(f"{sys.version_info.major}.{sys.version_info.minor}")
+major, minor = sys.version_info.major, sys.version_info.minor
+print("1" if (major > 3) or (major == 3 and minor >= 9) else "0")
 PY
 )"
-if [[ "$python_version" < "3.10" ]]; then
-  echo "Python $python_version détecté, mais 3.10+ est requis."
+python_version="$($PYTHON_BIN -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+if [[ "$python_ok" != "1" ]]; then
+  echo "Python $python_version détecté, mais 3.9+ est requis."
+  echo ""
+  echo "Sur macOS, installez Python 3.9+ avec Homebrew :"
+  echo "  brew install python@3.12"
+  echo ""
+  echo "Puis relancez le script avec :"
+  echo "  PYTHON_BIN=/opt/homebrew/bin/python3.12 ./setup/install.sh"
   exit 1
 fi
+echo "  Python $python_version détecté ✓"
 
 mkdir -p "$TOOLS_DIR" "$MODEL_DIR"
 

@@ -22,13 +22,13 @@ function Get-Python {
     if (Test-Path $embeddedPython) { return $embeddedPython }
 
     if (Get-Command py -ErrorAction SilentlyContinue) {
-        $pyExec = & py -3 -c "import sys; import sys; sys.exit(0 if sys.version_info[:2] >= (3,10) else 1)" 2>$null
+        $pyExec = & py -3 -c "import sys; sys.exit(0 if sys.version_info[:2] >= (3,9) else 1)" 2>$null
         if ($LASTEXITCODE -eq 0) {
             return (& py -3 -c "import sys; print(sys.executable)")
         }
     }
     if (Get-Command python -ErrorAction SilentlyContinue) {
-        & python -c "import sys; sys.exit(0 if sys.version_info[:2] >= (3,10) else 1)" 2>$null
+        & python -c "import sys; sys.exit(0 if sys.version_info[:2] >= (3,9) else 1)" 2>$null
         if ($LASTEXITCODE -eq 0) {
             return "python"
         }
@@ -57,7 +57,7 @@ Ensure-Dir $ModelDir
 
 Write-Info "[1/5] Recherche/installation Python..."
 $pythonCandidate = Get-Python -EmbeddedTarget $EmbeddedDir
-if (-not $pythonCandidate) { throw "Impossible de récupérer Python 3.10+." }
+if (-not $pythonCandidate) { throw "Impossible de récupérer Python 3.9+." }
 
 Write-Info "[2/5] Création du venv local (tools/venv)..."
 if (-not (Test-Path (Join-Path $VenvDir "Scripts/python.exe"))) {
