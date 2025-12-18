@@ -29,6 +29,7 @@ ENV/
 # IDE
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 *~
@@ -37,14 +38,20 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Output files
+# Output files (transcription results)
 out/
+
+# Audio/Video files (don't commit media files)
 *.wav
 *.mp3
 *.mp4
 *.avi
 *.mov
 *.mkv
+*.m4a
+*.flac
+*.ogg
+*.webm
 
 # Temporary files
 *.tmp
@@ -54,3 +61,17 @@ audio_temp.wav
 # Logs
 *.log
 
+# ===========================================
+# Installation artifacts (créés par setup/)
+# ===========================================
+
+# Python embeddable et venv local
+tools/
+
+# Modèles Whisper pré-téléchargés (~6 Go)
+models/
+
+# Archives temporaires d'installation
+*.zip
+*.tar.xz
+*.tar.gz

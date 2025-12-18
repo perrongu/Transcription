@@ -1,384 +1,213 @@
-# Transcription Audio/Video | Audio/Video Transcription (Whisper local)
+# Transcription Audio/Vidéo | Audio/Video Transcription
 
-**FR** : Transcription audio/vidéo 100% locale et sécurisée avec [faster-whisper](https://github.com/SYSTRAN/faster-whisper).  
-**EN** : 100% local and secure audio/video transcription with [faster-whisper](https://github.com/SYSTRAN/faster-whisper).
+**FR** : Transcription audio/vidéo 100% locale avec [faster-whisper](https://github.com/SYSTRAN/faster-whisper). Aucune donnée envoyée sur internet.  
+**EN** : 100% local audio/video transcription with [faster-whisper](https://github.com/SYSTRAN/faster-whisper). No data sent to the internet.
+
+---
+
+## 🎯 Pour les utilisateurs / For Users
+
+### Comment utiliser / How to use
+
+**FR**  
+1. **Glisse-dépose** ton fichier audio/vidéo sur `Transcrire.bat` (Windows), `Transcrire.command` (macOS) ou `Transcrire.sh` (Linux)
+2. Attends que la transcription se termine
+3. Récupère les fichiers dans le dossier `out/<nom_du_fichier>/`
+
+**EN**  
+1. **Drag and drop** your audio/video file onto `Transcrire.bat` (Windows), `Transcrire.command` (macOS) or `Transcrire.sh` (Linux)
+2. Wait for transcription to complete
+3. Find your files in `out/<file_name>/`
+
+### Fichiers générés / Generated files
+
+| Fichier / File | Description |
+|----------------|-------------|
+| `transcript.txt` | Texte brut / Plain text |
+| `transcript.srt` | Sous-titres SRT (lecteurs vidéo) / SRT subtitles |
+| `transcript.vtt` | Sous-titres WebVTT (web) / WebVTT subtitles |
+| `segments.json` | Données structurées avec timestamps / Structured data with timestamps |
+
+### Conseils / Tips
+
+**FR**  
+- Audio clair = meilleure transcription
+- La première transcription peut prendre du temps (chargement du modèle)
+- Tu peux interrompre avec `Ctrl+C` : les segments déjà faits sont conservés
+
+**EN**  
+- Clear audio = better transcription
+- First transcription may take time (model loading)
+- You can interrupt with `Ctrl+C`: already processed segments are saved
+
+---
+
+## 🏢 Pour l'IT / For IT
+
+### Installation (une seule fois / one time only)
+
+**FR**  
+1. Télécharge le projet (ZIP ou `git clone`)
+2. Exécute le script d'installation :
+
+| Système | Commande |
+|---------|----------|
+| Windows | Double-clic sur `setup\install.bat` ou : `powershell -ExecutionPolicy Bypass -File setup\install.ps1` |
+| macOS/Linux | `chmod +x setup/install.sh && ./setup/install.sh` |
+
+3. C'est terminé. Le dossier est prêt à être distribué aux utilisateurs.
+
+**EN**  
+1. Download the project (ZIP or `git clone`)
+2. Run the installation script:
+
+| System | Command |
+|--------|---------|
+| Windows | Double-click `setup\install.bat` or: `powershell -ExecutionPolicy Bypass -File setup\install.ps1` |
+| macOS/Linux | `chmod +x setup/install.sh && ./setup/install.sh` |
+
+3. Done. The folder is ready to be distributed to users.
+
+### Ce que fait le script d'installation / What the install script does
+
+1. **Python** : Télécharge Python embeddable (Windows) ou vérifie Python 3.10+ (macOS/Linux)
+2. **Environnement virtuel** : Crée `tools/venv/` avec toutes les dépendances Python
+3. **ffmpeg** : Télécharge ffmpeg portable dans `tools/ffmpeg/`
+4. **Modèle Whisper** : Pré-télécharge le modèle large-v3 (~6 Go) dans `models/`
+
+### Distribution aux utilisateurs / Distribution to users
+
+**FR**  
+Copiez le dossier complet (incluant `tools/` et `models/`) sur les postes utilisateurs. Les utilisateurs n'ont besoin que de glisser-déposer leurs fichiers sur les lanceurs.
+
+**EN**  
+Copy the entire folder (including `tools/` and `models/`) to user workstations. Users only need to drag and drop files onto the launchers.
+
+### Structure du projet après installation / Project structure after installation
+
+```
+Transcription/
+├── Transcrire.bat          # Lanceur Windows / Windows launcher
+├── Transcrire.command      # Lanceur macOS / macOS launcher
+├── Transcrire.sh           # Lanceur Linux / Linux launcher
+├── setup/
+│   ├── install.bat         # Script IT Windows
+│   ├── install.ps1         
+│   └── install.sh          # Script IT macOS/Linux
+├── tools/                  # Créé par l'installation / Created by installation
+│   ├── python/             # Python embeddable (Windows uniquement)
+│   ├── ffmpeg/             # ffmpeg portable
+│   └── venv/               # Environnement Python avec dépendances
+├── models/                 # Modèle Whisper pré-téléchargé / Pre-downloaded model
+├── scripts/
+│   └── transcribe.py       # Script principal
+├── out/                    # Résultats des transcriptions / Transcription results
+├── requirements.txt
+└── README.md
+```
+
+### Configuration réseau / Network configuration
+
+**FR**  
+- L'installation nécessite un accès internet pour télécharger Python, ffmpeg et le modèle Whisper
+- Après installation, **aucun accès internet n'est requis**
+- Les proxies HTTP_PROXY/HTTPS_PROXY sont détectés automatiquement lors de l'installation
+- Pour un réseau très restrictif : téléchargez manuellement les fichiers et placez-les dans les dossiers appropriés
+
+**EN**  
+- Installation requires internet access to download Python, ffmpeg and Whisper model
+- After installation, **no internet access is required**
+- HTTP_PROXY/HTTPS_PROXY proxies are automatically detected during installation
+- For very restrictive networks: manually download files and place them in appropriate folders
+
+---
 
 ## 🔒 Confidentialité / Privacy
 
 **FR**  
-✅ **Traitement 100% local** — Aucune donnée n'est transmise à l'extérieur.  
-✅ **Aucune API requise** — Fonctionne entièrement hors ligne après le téléchargement initial des modèles.  
-✅ **Sécurisé pour contenu privé** — Tes fichiers audio/vidéo et transcriptions restent sur ta machine.  
-✅ **Pas de télémétrie** — Aucun tracking, aucune collecte de données.
+✅ Traitement 100% local — Aucune donnée transmise à l'extérieur  
+✅ Aucune API requise — Fonctionne hors ligne après installation  
+✅ Pas de télémétrie — Aucun tracking, aucune collecte de données
 
 **EN**  
-✅ **100% local processing** — No data is transmitted externally.  
-✅ **No API required** — Works completely offline after initial model download.  
-✅ **Secure for private content** — Your audio/video files and transcriptions stay on your machine.  
-✅ **No telemetry** — No tracking, no data collection.
+✅ 100% local processing — No data transmitted externally  
+✅ No API required — Works offline after installation  
+✅ No telemetry — No tracking, no data collection
 
 ---
 
-## 📋 Fonctionnalités / Features
+## ⚙️ Options avancées / Advanced options
 
-**FR**  
-- Transcription audio/vidéo en local (MP4, MP3, WAV, etc.)  
-- Support multi-langues (FR, EN, ES, DE, etc.)  
-- Export multiple formats : TXT, SRT, VTT, JSON  
-- Support GPU NVIDIA (optionnel) pour accélération  
-- Barre de progression avec statistiques détaillées  
-- Détection automatique de langue  
+### Utilisation en ligne de commande / Command line usage
 
-**EN**  
-- Local audio/video transcription (MP4, MP3, WAV, etc.)  
-- Multi-language support (FR, EN, ES, DE, etc.)  
-- Multiple export formats: TXT, SRT, VTT, JSON  
-- NVIDIA GPU support (optional) for acceleration  
-- Progress bar with detailed statistics  
-- Automatic language detection  
-
----
-
-## 🚀 Démarrage rapide / Quick start
-
-### Prérequis / Requirements
-
-**FR**  
-- Python 3.10+  
-- ffmpeg  
-
-**EN**  
-- Python 3.10+  
-- ffmpeg  
-
-### Installation / Installation
-
-**FR**  
-1. Clone ou télécharge ce dépôt  
-2. Installe les dépendances :  
 ```bash
-pip install -r requirements.txt
+# Windows
+python scripts\transcribe.py --input "fichier.mp4"
+
+# macOS/Linux
+python3 scripts/transcribe.py --input "fichier.mp4"
 ```
 
-**EN**  
-1. Clone or download this repository  
-2. Install dependencies:  
-```bash
-pip install -r requirements.txt
-```
-
-### Utilisation / Usage
-
-**FR**  
-```bash
-python3 scripts/transcribe.py --input "mon_fichier.mp4"    # macOS/Linux
-# ou / or
-python scripts/transcribe.py --input "mon_fichier.mp4"     # Windows
-```
-
-**EN**  
-```bash
-python3 scripts/transcribe.py --input "my_file.mp4"    # macOS/Linux
-# or
-python scripts/transcribe.py --input "my_file.mp4"      # Windows
-```
-
-Les résultats sont dans `out/<nom_du_fichier>/` / Results are in `out/<file_name>/`
-
----
-
-## 📦 Installation détaillée / Detailed installation
-
-### 1. Prérequis système / System requirements
-
-#### 1.1 macOS
-
-**FR**  
-1. Ouvre Terminal (Spotlight > tape "Terminal")  
-2. Vérifie Python (doit afficher 3.10 ou plus) :  
-```bash
-python3 --version
-```
-Si Python n'est pas installé ou version < 3.10, installe-le avec Homebrew (étapes 3-4) ou télécharge depuis https://www.python.org/downloads/  
-3. Vérifie Homebrew (si une version s'affiche, c'est ok) :  
-```bash
-brew --version
-```
-4. Pas de Homebrew ? Installe-le :  
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-5. Installe Python et ffmpeg :  
-```bash
-brew install python3 ffmpeg
-```
-
-**EN**  
-1. Open Terminal (Spotlight > type "Terminal")  
-2. Check Python (should display 3.10 or higher) :  
-```bash
-python3 --version
-```
-If Python is not installed or version < 3.10, install it with Homebrew (steps 3-4) or download from https://www.python.org/downloads/  
-3. Check Homebrew (if a version displays, you're good) :  
-```bash
-brew --version
-```
-4. No Homebrew? Install it :  
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-5. Install Python and ffmpeg :  
-```bash
-brew install python3 ffmpeg
-```
-
-#### 1.2 Ubuntu/Debian
-
-**FR**  
-1. Vérifie Python (doit afficher 3.10 ou plus) :  
-```bash
-python3 --version
-```
-2. Si Python n'est pas installé ou version < 3.10, installe-le avec ffmpeg :  
-```bash
-sudo apt update
-sudo apt install python3 python3-pip ffmpeg
-```
-
-**EN**  
-1. Check Python (should display 3.10 or higher) :  
-```bash
-python3 --version
-```
-2. If Python is not installed or version < 3.10, install it with ffmpeg :  
-```bash
-sudo apt update
-sudo apt install python3 python3-pip ffmpeg
-```
-
-#### 1.3 Windows (PowerShell)
-
-**FR**  
-1. Vérifie Python (doit afficher 3.10 ou plus) :  
-```powershell
-python --version
-```
-Si Python n'est pas installé ou version < 3.10 :  
-2. Installe Python 3.10+ depuis https://www.python.org/downloads/  
-   ⚠️ **Important** : Coche "Add python.exe to PATH" pendant l'installation  
-3. Vérifie que pip est installé :  
-```powershell
-pip --version
-```
-4. Installe ffmpeg via winget :  
-```powershell
-winget install Gyan.FFmpeg
-```
-
-**EN**  
-1. Check Python (should display 3.10 or higher) :  
-```powershell
-python --version
-```
-If Python is not installed or version < 3.10 :  
-2. Install Python 3.10+ from https://www.python.org/downloads/  
-   ⚠️ **Important** : Check "Add python.exe to PATH" during installation  
-3. Verify pip is installed :  
-```powershell
-pip --version
-```
-4. Install ffmpeg via winget :  
-```powershell
-winget install Gyan.FFmpeg
-```
-
-### 2. Installation du projet / Project setup
-
-**FR**  
-1. Clone ou télécharge ce dépôt  
-2. Ouvre un terminal dans ce dossier  
-3. Vérifie que Python et pip fonctionnent :  
-```bash
-python3 --version    # macOS/Linux
-pip3 --version       # macOS/Linux
-# ou
-python --version     # Windows
-pip --version        # Windows
-```
-4. Installe les dépendances Python :  
-```bash
-pip3 install -r requirements.txt    # macOS/Linux
-# ou
-pip install -r requirements.txt      # Windows
-```
-
-**EN**  
-1. Clone or download this repository  
-2. Open a terminal in this folder  
-3. Verify Python and pip work :  
-```bash
-python3 --version    # macOS/Linux
-pip3 --version       # macOS/Linux
-# or
-python --version     # Windows
-pip --version        # Windows
-```
-4. Install Python dependencies :  
-```bash
-pip3 install -r requirements.txt    # macOS/Linux
-# or
-pip install -r requirements.txt      # Windows
-```
-
-#### Option GPU (NVIDIA) / Optional GPU
-
-**FR**  
-Pour accélérer avec une carte NVIDIA :  
-```bash
-pip install torch --index-url https://download.pytorch.org/whl/cu118
-```
-Pas de GPU ? Ça marche en CPU (plus lent).
-
-**EN**  
-To accelerate with an NVIDIA GPU :  
-```bash
-pip install torch --index-url https://download.pytorch.org/whl/cu118
-```
-No GPU? CPU works, just slower.
-
----
-
-## 💡 Comment ça marche / How it works
-
-**FR**  
-1. Vérifie que les bibliothèques Python sont installées (faster-whisper, tqdm)  
-2. Convertit l'audio de ta vidéo en WAV mono 16 kHz avec ffmpeg  
-3. Transcrit avec le modèle Whisper choisi  
-4. Écrit les fichiers dans `out/<nom>/`
-
-**EN**  
-1. Checks that Python libraries are installed (faster-whisper, tqdm)  
-2. Converts your video audio to mono 16 kHz WAV with ffmpeg  
-3. Transcribes with the chosen Whisper model  
-4. Writes files to `out/<name>/`
-
----
-
-## ⚙️ Options / Options
+### Options disponibles / Available options
 
 | Option | Défaut / Default | Description |
 |--------|------------------|-------------|
-| `--input`, `-i` | (requis) | Fichier à transcrire / File to transcribe |
+| `--input`, `-i` | (interactif) | Fichier à transcrire / File to transcribe |
 | `--outdir`, `-o` | `out` | Dossier de sortie / Output folder |
-| `--lang`, `-l` | `fr` | Langue de transcription / Transcription language |
+| `--lang`, `-l` | `fr` | Langue / Language (fr, en, es, de, etc.) |
 | `--model`, `-m` | `large-v3` | Modèle Whisper / Whisper model |
-| `--device`, `-d` | `auto` | `cpu`, `cuda`, ou `auto` |
+| `--device`, `-d` | `auto` | `cpu`, `cuda` ou `auto` |
 | `--beam-size` | `5` | Qualité vs vitesse / Quality vs speed |
 | `--no-vad` | - | Désactiver VAD / Disable Voice Activity Detection |
-| `--sample` | - | Transcrire seulement N minutes / Transcribe first N minutes |
-| `--formats` | `txt,srt,vtt,json` | Formats de sortie séparés par virgule / Comma-separated outputs |
+| `--sample` | - | Transcrire N premières minutes / First N minutes only |
+| `--formats` | `txt,srt,vtt,json` | Formats de sortie / Output formats |
 
 ### Exemples / Examples
 
 ```bash
-# FR complet / Full run
-python3 scripts/transcribe.py -i "reunion.mp4"    # macOS/Linux
-python scripts/transcribe.py -i "reunion.mp4"       # Windows
+# Test rapide (3 premières minutes) / Quick test (first 3 minutes)
+python scripts/transcribe.py -i "reunion.mp4" --sample 3 --model medium
 
-# Test rapide 3 minutes / Quick 3-minute test
-python3 scripts/transcribe.py -i "reunion.mp4" --sample 3 --model medium
+# Anglais, haute qualité / English, high quality
+python scripts/transcribe.py -i "interview.mp4" -l en --beam-size 10
 
-# CPU uniquement, SRT seulement / CPU only, SRT only
-python3 scripts/transcribe.py -i "audio.wav" -d cpu --formats srt
-
-# Anglais avec beam-size plus haut / English with higher beam-size
-python3 scripts/transcribe.py -i "interview.mp4" -l en --beam-size 10
+# SRT uniquement / SRT only
+python scripts/transcribe.py -i "video.mp4" --formats srt
 ```
 
----
+### Choix du modèle / Model selection
 
-## 🎯 Choisir un modèle / Pick a model
-
-| Modèle | RAM approx | Pour qui ? / Best for |
-|--------|------------|-----------------------|
-| `small` | ~2 GB | PC léger, tests rapides / Light PCs, quick tests |
+| Modèle / Model | RAM | Usage recommandé / Recommended use |
+|----------------|-----|-----------------------------------|
+| `small` | ~2 GB | Tests rapides, PC léger / Quick tests, light PC |
 | `medium` | ~5 GB | Bon compromis / Good balance |
-| `large-v3` | ~10 GB | Meilleure qualité / Best quality (défaut) |
-
-**FR**  
-Conseils : `small` si ton ordi rame ; `large-v3` pour réunions importantes.
-
-**EN**  
-Tips : use `small` on low-power PCs ; `large-v3` for important meetings.
-
----
-
-## 📁 Structure de sortie / Output structure
-
-```
-out/
-└── mon_fichier/
-    ├── transcript.txt   # Texte brut / Raw text
-    ├── transcript.srt   # Sous-titres SRT
-    ├── transcript.vtt   # Sous-titres WebVTT
-    └── segments.json    # Timestamps + métadonnées / Timestamps + metadata
-```
-
----
-
-## 💪 Pour de bons résultats / Tips for better results
-
-**FR**  
-- Audio clair => meilleurs sous-titres  
-- Spécifie la langue avec `--lang` pour éviter les erreurs  
-- Laisse la VAD activée par défaut pour couper les silences  
-- Monte `--beam-size` (8-10) pour la précision, baisse (1-2) pour la vitesse
-
-**EN**  
-- Clean audio => better subtitles  
-- Set language with `--lang` to avoid mistakes  
-- Keep VAD on by default for better segmentation  
-- Raise `--beam-size` (8-10) for accuracy, lower (1-2) for speed
+| `large-v3` | ~10 GB | Meilleure qualité (défaut) / Best quality (default) |
 
 ---
 
 ## 🔧 Dépannage / Troubleshooting
 
-**FR**  
-- **"python: command not found"** ou **"python3: command not found"** : installe Python (voir section Installation détaillée)  
-- **"pip: command not found"** : utilise `pip3` sur macOS/Linux, ou réinstalle Python avec l'option "Add to PATH" sur Windows  
-- **"ffmpeg: command not found"** : installe ffmpeg (voir section Installation)  
-- **"Python version < 3.10"** : mets à jour Python vers 3.10+  
-- **Trop lent** : modèle plus petit (`--model small/medium`), `--device cuda` si GPU, baisse `--beam-size`  
-- **Texte incorrect** : vérifie `--lang`, essaie un modèle plus grand (`large-v3`), augmente `--beam-size`  
-- **Erreur "dépendances manquantes"** : lance `pip3 install -r requirements.txt` (macOS/Linux) ou `pip install -r requirements.txt` (Windows)
+### Problèmes courants / Common issues
 
-**EN**  
-- **"python: command not found"** or **"python3: command not found"** : install Python (see Detailed installation section)  
-- **"pip: command not found"** : use `pip3` on macOS/Linux, or reinstall Python with "Add to PATH" option on Windows  
-- **"ffmpeg: command not found"** : install ffmpeg (see Installation section)  
-- **"Python version < 3.10"** : update Python to 3.10+  
-- **Too slow** : smaller model (`--model small/medium`), `--device cuda` if GPU, lower `--beam-size`  
-- **Incorrect text** : check `--lang`, try a larger model (`large-v3`), increase `--beam-size`  
-- **"Missing dependencies" error** : run `pip3 install -r requirements.txt` (macOS/Linux) or `pip install -r requirements.txt` (Windows)
+| Problème / Problem | Solution |
+|--------------------|----------|
+| "Aucun fichier fourni" | Glisse un fichier sur le lanceur ou utilise `--input` |
+| Transcription lente | Utilise `--model small` ou `--model medium` |
+| Texte incorrect | Vérifie `--lang`, augmente `--beam-size` |
+| Erreur ffmpeg | Relance l'installation IT |
+
+### Logs et debug
+
+Le script affiche la progression en temps réel. En cas d'erreur, le message indique généralement la cause.
 
 ---
 
 ## 📄 Licence / License
 
-**FR**  
-Ce projet utilise [faster-whisper](https://github.com/SYSTRAN/faster-whisper) qui est sous licence MIT.
-
-**EN**  
-This project uses [faster-whisper](https://github.com/SYSTRAN/faster-whisper) which is licensed under MIT.
+Ce projet utilise [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (licence MIT).
 
 ---
 
 ## 🤝 Contribution / Contributing
 
-**FR**  
-Les contributions sont les bienvenues ! N'hésite pas à ouvrir une issue ou une pull request.
-
-**EN**  
-Contributions are welcome! Feel free to open an issue or pull request.
+Les contributions sont les bienvenues ! / Contributions are welcome!

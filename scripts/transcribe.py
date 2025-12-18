@@ -14,15 +14,20 @@ Résultats / Outputs:
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
+import shutil
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
 
 # Constantes
 DEFAULT_UPDATE_INTERVAL = 5.0
+ROOT_DIR = Path(__file__).resolve().parent.parent
+TOOLS_DIR = ROOT_DIR / "tools"
+DEFAULT_MODEL_DIR = ROOT_DIR / "models"
 
 
 @dataclass
@@ -112,10 +117,47 @@ def format_speed(speed: float) -> str:
 # AUDIO
 # ============================================================================
 
-def probe_audio_duration(audio_path: Path) -> float:
+def find_executable(candidates: list[str]) -> str | None:
+    """Retourne le premier exécutable existant parmi une liste."""
+    for candidate in candidates:
+        if not candidate:
+            continue
+        path_candidate = Path(candidate).expanduser()
+        if path_candidate.exists():
+            return str(path_candidate)
+    for candidate in candidates:
+        if candidate and shutil.which(candidate):
+            return shutil.which(candidate)
+    return None
+
+
+def detect_ffmpeg_binaries() -> tuple[str, str]:
+    """Détecte ffmpeg/ffprobe locaux dans tools/ffmpeg ou dans le PATH."""
+    ffmpeg_candidates = [
+        os.environ.get("FFMPEG_BIN"),
+        TOOLS_DIR / "ffmpeg" / "bin" / "ffmpeg",
+        TOOLS_DIR / "ffmpeg" / "ffmpeg",
+        TOOLS_DIR / "ffmpeg" / "bin" / "ffmpeg.exe",
+        TOOLS_DIR / "ffmpeg" / "ffmpeg.exe",
+        "ffmpeg",
+    ]
+    ffprobe_candidates = [
+        os.environ.get("FFPROBE_BIN"),
+        TOOLS_DIR / "ffmpeg" / "bin" / "ffprobe",
+        TOOLS_DIR / "ffmpeg" / "ffprobe",
+        TOOLS_DIR / "ffmpeg" / "bin" / "ffprobe.exe",
+        TOOLS_DIR / "ffmpeg" / "ffprobe.exe",
+        "ffprobe",
+    ]
+    ffmpeg_cmd = find_executable([str(c) for c in ffmpeg_candidates if c is not None]) or "ffmpeg"
+    ffprobe_cmd = find_executable([str(c) for c in ffprobe_candidates if c is not None]) or "ffprobe"
+    return ffmpeg_cmd, ffprobe_cmd
+
+
+def probe_audio_duration(audio_path: Path, ffprobe_cmd: str) -> float:
     """Retourne la durée (secondes) d'un fichier audio via ffprobe, 0 si erreur."""
     probe_cmd = [
-        "ffprobe", "-v", "error",
+        ffprobe_cmd, "-v", "error",
         "-show_entries", "format=duration",
         "-of", "default=noprint_wrappers=1:nokey=1",
         str(audio_path),
@@ -130,13 +172,13 @@ def probe_audio_duration(audio_path: Path) -> float:
         return 0.0
 
 
-def extract_audio(input_path: Path, output_wav: Path, sample_minutes: float | None = None) -> float:
+def extract_audio(input_path: Path, output_wav: Path, ffmpeg_cmd: str, ffprobe_cmd: str, sample_minutes: float | None = None) -> float:
     """
     Extrait l'audio en WAV mono 16kHz PCM.
     Retourne la durée en secondes.
     """
     cmd = [
-        "ffmpeg", "-y", "-i", str(input_path),
+        ffmpeg_cmd, "-y", "-i", str(input_path),
         "-ac", "1",           # mono
         "-ar", "16000",       # 16kHz
         "-c:a", "pcm_s16le",  # PCM 16-bit
@@ -154,7 +196,7 @@ def extract_audio(input_path: Path, output_wav: Path, sample_minutes: float | No
         print(f"Erreur ffmpeg / ffmpeg error:\n{result.stderr}")
         sys.exit(1)
     
-    return probe_audio_duration(output_wav)
+    return probe_audio_duration(output_wav, ffprobe_cmd)
 
 
 # ============================================================================
@@ -273,6 +315,7 @@ def transcribe_audio(
     compute_type: str = "auto",
     beam_size: int = 5,
     vad_filter: bool = True,
+    model_dir: Path | None = None,
 ) -> tuple[list[dict], dict, dict]:
     """
     Transcrit l'audio avec faster-whisper.
@@ -289,8 +332,18 @@ def transcribe_audio(
     if compute_type == "auto":
         compute_type = "float16" if device == "cuda" else "int8"
 
-    print(f"\n[whisper] Chargement modèle / Loading model {model_name} sur {device} ({compute_type})...")
-    model = WhisperModel(model_name, device=device, compute_type=compute_type)
+    resolved_model_dir = model_dir or DEFAULT_MODEL_DIR
+    resolved_model_dir.mkdir(parents=True, exist_ok=True)
+    local_model_path = resolved_model_dir / model_name
+    model_source = str(local_model_path) if local_model_path.exists() else model_name
+
+    print(f"\n[whisper] Chargement modèle / Loading model {model_source} sur {device} ({compute_type})...")
+    model = WhisperModel(
+        model_source,
+        device=device,
+        compute_type=compute_type,
+        download_root=str(resolved_model_dir),
+    )
 
     print(f"[whisper] Transcription / Transcribing (langue/lang={language}, beam={beam_size}, vad={vad_filter})\n")
 
@@ -441,7 +494,7 @@ Exemples:
 
     parser.add_argument(
         "--input", "-i",
-        required=True,
+        required=False,
         help="Fichier audio/vidéo à transcrire / file to transcribe (.mp4, .wav, .mp3, etc.)",
     )
     parser.add_argument(
@@ -496,7 +549,19 @@ Exemples:
     )
 
     args = parser.parse_args()
+    if not args.input:
+        try:
+            print("Mode interactif: indique le fichier audio/vidéo à transcrire (glisser-déposer possible).")
+            user_value = input("Chemin du fichier / File path: ").strip().strip('"').strip("'")
+        except (EOFError, KeyboardInterrupt):
+            user_value = ""
+        if not user_value:
+            print("Aucun fichier fourni, arrêt.")
+            sys.exit(1)
+        args.input = user_value
+
     config = create_config_from_args(args)
+    ffmpeg_cmd, ffprobe_cmd = detect_ffmpeg_binaries()
     
     input_path = Path(args.input).resolve()
     if not input_path.exists():
@@ -526,11 +591,11 @@ Exemples:
     use_temp_audio = True
     if suffix == ".wav" and args.sample is None:
         wav_path = input_path
-        audio_duration = probe_audio_duration(wav_path)
+        audio_duration = probe_audio_duration(wav_path, ffprobe_cmd)
         use_temp_audio = False
     else:
         wav_path = out_dir / "audio_temp.wav"
-        audio_duration = extract_audio(input_path, wav_path, sample_minutes=args.sample)
+        audio_duration = extract_audio(input_path, wav_path, ffmpeg_cmd=ffmpeg_cmd, ffprobe_cmd=ffprobe_cmd, sample_minutes=args.sample)
     
     if audio_duration <= 0:
         print("Erreur / Error: impossible de déterminer la durée audio / cannot read audio duration")
@@ -549,6 +614,7 @@ Exemples:
         compute_type=config.compute_type,
         beam_size=config.beam_size,
         vad_filter=config.vad_filter,
+        model_dir=DEFAULT_MODEL_DIR,
     )
     
     # Exports
