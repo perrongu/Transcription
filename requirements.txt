@@ -1,0 +1,16 @@
+# Transcription locale via faster-whisper
+# Local transcription with faster-whisper
+# Installation / Install: pip install -r requirements.txt
+
+# Coeur / Core
+faster-whisper>=1.0.0
+tqdm>=4.66.0
+
+# GPU NVIDIA (optionnel) / Optional NVIDIA GPU
+# Si tu as une carte NVIDIA + CUDA, installe aussi PyTorch CUDA :
+# If you have an NVIDIA GPU with CUDA, install PyTorch CUDA:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu118
+# Sinon ne touche à rien : ça tournera en CPU (plus lent, mais OK).
+# Otherwise leave as-is: CPU will work (slower, but fine).
+# Pour forcer l'install via ce fichier: enlève le '#' devant torch ci-dessous puis `pip install -r requirements.txt`.
+# To force install via this file: remove the leading '#' on torch below, then run `pip install -r requirements.txt`.
