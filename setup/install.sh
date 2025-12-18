@@ -97,7 +97,7 @@ from faster_whisper.utils import download_model
 model_dir = Path(r"$MODEL_DIR")
 model_dir.mkdir(parents=True, exist_ok=True)
 print("  Téléchargement/validation du modèle large-v3...")
-download_model("large-v3", download_root=model_dir)
+download_model("large-v3", output_dir=str(model_dir))
 print("  Modèle prêt dans", model_dir)
 PY
 

@@ -94,7 +94,7 @@ from faster_whisper.utils import download_model
 target = Path(r"$ModelDir")
 target.mkdir(parents=True, exist_ok=True)
 print("  Téléchargement/validation du modèle large-v3...")
-download_model("large-v3", download_root=target)
+download_model("large-v3", output_dir=str(target))
 print("  Modèle prêt dans", target)
 "@
 $tmpPy = Join-Path $ToolsDir "download_model.py"
