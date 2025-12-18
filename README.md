@@ -10,14 +10,38 @@
 ### Comment utiliser / How to use
 
 **FR**  
+**Méthode recommandée (glisser-déposer)** :  
 1. **Glisse-dépose** ton fichier audio/vidéo sur `Transcrire.bat` (Windows), `Transcrire.command` (macOS) ou `Transcrire.sh` (Linux)
 2. Attends que la transcription se termine
 3. Récupère les fichiers dans le dossier `out/<nom_du_fichier>/`
 
+**Méthode alternative (ligne de commande)** :  
+```bash
+# macOS/Linux
+./Transcrire.command "fichier.mp4"
+# ou
+./Transcrire.sh "fichier.mp4"
+
+# Windows
+Transcrire.bat "fichier.mp4"
+```
+
 **EN**  
+**Recommended method (drag and drop)** :  
 1. **Drag and drop** your audio/video file onto `Transcrire.bat` (Windows), `Transcrire.command` (macOS) or `Transcrire.sh` (Linux)
 2. Wait for transcription to complete
 3. Find your files in `out/<file_name>/`
+
+**Alternative method (command line)** :  
+```bash
+# macOS/Linux
+./Transcrire.command "file.mp4"
+# or
+./Transcrire.sh "file.mp4"
+
+# Windows
+Transcrire.bat "file.mp4"
+```
 
 ### Fichiers générés / Generated files
 
@@ -31,14 +55,18 @@
 ### Conseils / Tips
 
 **FR**  
+- **Utilise toujours les lanceurs** (`Transcrire.command`, `Transcrire.sh`, `Transcrire.bat`) — ils utilisent automatiquement le bon Python avec les dépendances
 - Audio clair = meilleure transcription
 - La première transcription peut prendre du temps (chargement du modèle)
 - Tu peux interrompre avec `Ctrl+C` : les segments déjà faits sont conservés
+- Si tu vois une erreur "dépendances manquantes", le script te dira automatiquement quelle commande utiliser
 
 **EN**  
+- **Always use the launchers** (`Transcrire.command`, `Transcrire.sh`, `Transcrire.bat`) — they automatically use the correct Python with dependencies
 - Clear audio = better transcription
 - First transcription may take time (model loading)
 - You can interrupt with `Ctrl+C`: already processed segments are saved
+- If you see a "missing dependencies" error, the script will automatically tell you which command to use
 
 ---
 
@@ -138,15 +166,33 @@ Transcription/
 
 ## ⚙️ Options avancées / Advanced options
 
-### Utilisation en ligne de commande / Command line usage
+### Utilisation directe du script Python / Direct Python script usage
+
+**FR**  
+Si tu veux utiliser directement le script Python (au lieu des lanceurs), tu dois utiliser le Python du venv local :
 
 ```bash
-# Windows
-python scripts\transcribe.py --input "fichier.mp4"
-
 # macOS/Linux
-python3 scripts/transcribe.py --input "fichier.mp4"
+tools/venv/bin/python scripts/transcribe.py --input "fichier.mp4"
+
+# Windows
+tools\venv\Scripts\python.exe scripts\transcribe.py --input "fichier.mp4"
 ```
+
+**⚠️ Important** : N'utilise **pas** `python3 scripts/transcribe.py` directement — cela utilise le Python système qui n'a pas les dépendances installées. Si tu essaies, le script détectera automatiquement le venv local et t'indiquera la bonne commande à utiliser.
+
+**EN**  
+If you want to use the Python script directly (instead of the launchers), you must use the Python from the local venv:
+
+```bash
+# macOS/Linux
+tools/venv/bin/python scripts/transcribe.py --input "file.mp4"
+
+# Windows
+tools\venv\Scripts\python.exe scripts\transcribe.py --input "file.mp4"
+```
+
+**⚠️ Important** : Do **not** use `python3 scripts/transcribe.py` directly — this uses the system Python which doesn't have the dependencies installed. If you try, the script will automatically detect the local venv and tell you the correct command to use.
 
 ### Options disponibles / Available options
 
@@ -164,15 +210,54 @@ python3 scripts/transcribe.py --input "fichier.mp4"
 
 ### Exemples / Examples
 
+**FR**  
+**Avec les lanceurs (recommandé)** :
 ```bash
-# Test rapide (3 premières minutes) / Quick test (first 3 minutes)
-python scripts/transcribe.py -i "reunion.mp4" --sample 3 --model medium
+# Test rapide (3 premières minutes)
+./Transcrire.command "reunion.mp4" --sample 3 --model medium
 
-# Anglais, haute qualité / English, high quality
-python scripts/transcribe.py -i "interview.mp4" -l en --beam-size 10
+# Anglais, haute qualité
+./Transcrire.command "interview.mp4" --lang en --beam-size 10
 
-# SRT uniquement / SRT only
-python scripts/transcribe.py -i "video.mp4" --formats srt
+# SRT uniquement
+./Transcrire.command "video.mp4" --formats srt
+```
+
+**Avec le script Python directement** :
+```bash
+# Test rapide (3 premières minutes)
+tools/venv/bin/python scripts/transcribe.py -i "reunion.mp4" --sample 3 --model medium
+
+# Anglais, haute qualité
+tools/venv/bin/python scripts/transcribe.py -i "interview.mp4" -l en --beam-size 10
+
+# SRT uniquement
+tools/venv/bin/python scripts/transcribe.py -i "video.mp4" --formats srt
+```
+
+**EN**  
+**With launchers (recommended)** :
+```bash
+# Quick test (first 3 minutes)
+./Transcrire.command "meeting.mp4" --sample 3 --model medium
+
+# English, high quality
+./Transcrire.command "interview.mp4" --lang en --beam-size 10
+
+# SRT only
+./Transcrire.command "video.mp4" --formats srt
+```
+
+**With Python script directly** :
+```bash
+# Quick test (first 3 minutes)
+tools/venv/bin/python scripts/transcribe.py -i "meeting.mp4" --sample 3 --model medium
+
+# English, high quality
+tools/venv/bin/python scripts/transcribe.py -i "interview.mp4" -l en --beam-size 10
+
+# SRT only
+tools/venv/bin/python scripts/transcribe.py -i "video.mp4" --formats srt
 ```
 
 ### Choix du modèle / Model selection
@@ -191,10 +276,30 @@ python scripts/transcribe.py -i "video.mp4" --formats srt
 
 | Problème / Problem | Solution |
 |--------------------|----------|
+| **"dépendances manquantes: faster-whisper, tqdm"** | Utilise les lanceurs (`Transcrire.command`, `Transcrire.sh`, `Transcrire.bat`) ou le Python du venv : `tools/venv/bin/python scripts/transcribe.py` |
 | "Aucun fichier fourni" | Glisse un fichier sur le lanceur ou utilise `--input` |
 | Transcription lente | Utilise `--model small` ou `--model medium` |
 | Texte incorrect | Vérifie `--lang`, augmente `--beam-size` |
 | Erreur ffmpeg | Relance l'installation IT |
+| Le script ne trouve pas le modèle | Vérifie que `models/large-v3/` existe (relance l'installation si nécessaire) |
+
+### Détection automatique du venv / Automatic venv detection
+
+**FR**  
+Si tu utilises `python3 scripts/transcribe.py` directement et que les dépendances manquent, le script détecte automatiquement le venv local dans `tools/venv/` et affiche la commande exacte à utiliser :
+
+```
+⚠️  Un environnement virtuel local a été détecté dans tools/venv/
+   Utilisez-le avec: tools/venv/bin/python scripts/transcribe.py --input "fichier.mp4"
+```
+
+**EN**  
+If you use `python3 scripts/transcribe.py` directly and dependencies are missing, the script automatically detects the local venv in `tools/venv/` and displays the exact command to use:
+
+```
+⚠️  A local virtual environment was detected in tools/venv/
+   Use it with: tools/venv/bin/python scripts/transcribe.py --input "file.mp4"
+```
 
 ### Logs et debug
 

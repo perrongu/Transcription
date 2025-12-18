@@ -29,6 +29,18 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 TOOLS_DIR = ROOT_DIR / "tools"
 DEFAULT_MODEL_DIR = ROOT_DIR / "models"
 
+# Détection automatique du venv local
+VENV_PYTHON = TOOLS_DIR / "venv" / "bin" / "python"
+if sys.platform == "win32":
+    VENV_PYTHON = TOOLS_DIR / "venv" / "Scripts" / "python.exe"
+
+# Si le venv existe et que les dépendances ne sont pas disponibles, suggérer de l'utiliser
+def check_and_suggest_venv():
+    """Vérifie si un venv local existe et suggère son utilisation si nécessaire."""
+    if VENV_PYTHON.exists():
+        return str(VENV_PYTHON)
+    return None
+
 
 @dataclass
 class TranscriptionConfig:
@@ -56,13 +68,24 @@ def check_dependencies():
         missing.append("tqdm")
 
     if missing:
+        venv_python = check_and_suggest_venv()
         print(f"Erreur / Error: dépendances manquantes: {', '.join(missing)}")
-        print(f"Installez / Install with: pip install {' '.join(missing)}")
-        print("\nNote: Si vous utilisez le déploiement entreprise, utilisez les lanceurs:")
-        print("  - Transcrire.bat (Windows)")
-        print("  - Transcrire.command (macOS)")
-        print("  - Transcrire.sh (Linux)")
-        print("\nCes lanceurs utilisent automatiquement le Python du venv avec les dépendances installées.")
+        
+        if venv_python:
+            print(f"\n⚠️  Un environnement virtuel local a été détecté dans tools/venv/")
+            print(f"   Utilisez-le avec: {venv_python} scripts/transcribe.py --input \"fichier.mp4\"")
+            print(f"\n   Ou utilisez les lanceurs (recommandé):")
+            if sys.platform == "win32":
+                print("   - Transcrire.bat")
+            elif sys.platform == "darwin":
+                print("   - Transcrire.command")
+            else:
+                print("   - Transcrire.sh")
+            print(f"\n   Ces lanceurs utilisent automatiquement le Python du venv.")
+        else:
+            print(f"\nInstallez / Install with: pip install {' '.join(missing)}")
+            print("\nOu exécutez le script d'installation: ./setup/install.sh (macOS/Linux) ou setup\\install.bat (Windows)")
+        
         sys.exit(1)
 
 
