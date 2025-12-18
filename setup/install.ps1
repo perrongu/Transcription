@@ -100,6 +100,49 @@ print("  Modèle prêt dans", target)
 $tmpPy = Join-Path $ToolsDir "download_model.py"
 Set-Content -Path $tmpPy -Value $downloadScript -Encoding ASCII
 & $PythonExe $tmpPy
+if ($LASTEXITCODE -ne 0) {
+    Remove-Item $tmpPy -Force -ErrorAction SilentlyContinue
+    throw "Échec du téléchargement du modèle"
+}
 Remove-Item $tmpPy -Force
 
-Write-Host "`n✅ Installation terminée. Les employés peuvent utiliser Transcrire.bat." -ForegroundColor Green
+Write-Info "[Vérification] Test de l'installation..."
+$verifyScript = @"
+import sys
+try:
+    import faster_whisper
+    from faster_whisper import WhisperModel
+    print("  ✓ faster-whisper importé avec succès")
+    
+    import tqdm
+    print("  ✓ tqdm importé avec succès")
+    
+    from pathlib import Path
+    model_dir = Path(r"$ModelDir")
+    model_files = list(model_dir.glob("*.bin")) + list(model_dir.glob("*.safetensors"))
+    if model_files:
+        print(f"  ✓ Modèle trouvé dans {model_dir} ({len(model_files)} fichier(s))")
+    else:
+        print(f"  ⚠ Modèle non trouvé dans {model_dir}")
+        sys.exit(1)
+    
+    print("  ✅ Toutes les vérifications passées")
+except ImportError as e:
+    print(f"  ❌ Erreur d'import: {e}")
+    sys.exit(1)
+except Exception as e:
+    print(f"  ❌ Erreur: {e}")
+    sys.exit(1)
+"@
+$verifyPy = Join-Path $ToolsDir "verify_install.py"
+Set-Content -Path $verifyPy -Value $verifyScript -Encoding ASCII
+& $PythonExe $verifyPy
+$verifyExitCode = $LASTEXITCODE
+Remove-Item $verifyPy -Force
+
+if ($verifyExitCode -ne 0) {
+    Write-Host "`n❌ Erreur lors de la vérification. L'installation peut être incomplète." -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "`n✅ Installation terminée et vérifiée. Les employés peuvent utiliser Transcrire.bat." -ForegroundColor Green

@@ -102,5 +102,42 @@ print("  Modèle prêt dans", model_dir)
 PY
 
 echo
-echo "✅ Installation terminée."
+echo "[Vérification] Test de l'installation..."
+"$PYTHON" - <<PY
+import sys
+try:
+    import faster_whisper
+    from faster_whisper import WhisperModel
+    print("  ✓ faster-whisper importé avec succès")
+    
+    import tqdm
+    print("  ✓ tqdm importé avec succès")
+    
+    # Vérifier que le modèle existe
+    from pathlib import Path
+    model_dir = Path(r"$MODEL_DIR")
+    model_files = list(model_dir.glob("*.bin")) + list(model_dir.glob("*.safetensors"))
+    if model_files:
+        print(f"  ✓ Modèle trouvé dans {model_dir} ({len(model_files)} fichier(s))")
+    else:
+        print(f"  ⚠ Modèle non trouvé dans {model_dir}")
+        sys.exit(1)
+    
+    print("  ✅ Toutes les vérifications passées")
+except ImportError as e:
+    print(f"  ❌ Erreur d'import: {e}")
+    sys.exit(1)
+except Exception as e:
+    print(f"  ❌ Erreur: {e}")
+    sys.exit(1)
+PY
+
+if [ $? -ne 0 ]; then
+    echo
+    echo "❌ Erreur lors de la vérification. L'installation peut être incomplète."
+    exit 1
+fi
+
+echo
+echo "✅ Installation terminée et vérifiée."
 echo "Les employés peuvent utiliser Transcrire.command (macOS) ou Transcrire.sh (Linux) avec un double-clic ou glisser-déposer."

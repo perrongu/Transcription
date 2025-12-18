@@ -58,6 +58,11 @@ def check_dependencies():
     if missing:
         print(f"Erreur / Error: dépendances manquantes: {', '.join(missing)}")
         print(f"Installez / Install with: pip install {' '.join(missing)}")
+        print("\nNote: Si vous utilisez le déploiement entreprise, utilisez les lanceurs:")
+        print("  - Transcrire.bat (Windows)")
+        print("  - Transcrire.command (macOS)")
+        print("  - Transcrire.sh (Linux)")
+        print("\nCes lanceurs utilisent automatiquement le Python du venv avec les dépendances installées.")
         sys.exit(1)
 
 
