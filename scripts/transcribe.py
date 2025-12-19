@@ -22,7 +22,9 @@ import shutil
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
-from typing import Optional, List, Tuple, Dict
+from typing import Optional, List, Tuple, Dict, Callable
+
+SKIP_DEP_CHECK = os.environ.get("TRANSCRIBE_SKIP_DEPS") == "1"
 
 # Constantes
 DEFAULT_UPDATE_INTERVAL = 5.0
@@ -43,6 +45,19 @@ def check_and_suggest_venv():
     return None
 
 
+def _safe_progress_callback(callback: Optional[Callable[[Dict], None]], payload: Dict):
+    """
+    Enveloppe protectrice pour les callbacks de progression.
+    Évite de casser le flux de transcription si le callback lève une exception.
+    """
+    if not callback:
+        return
+    try:
+        callback(payload)
+    except Exception as exc:  # pragma: no cover - logging console only
+        print(f"[progress-callback] ignoré (erreur: {exc})")
+
+
 @dataclass
 class TranscriptionConfig:
     """Configuration centralisée pour la transcription."""
@@ -53,6 +68,19 @@ class TranscriptionConfig:
     beam_size: int = 5
     vad_filter: bool = True
     update_interval: float = DEFAULT_UPDATE_INTERVAL
+
+
+@dataclass
+class TranscriptionResult:
+    """Résultat structuré d'une transcription."""
+    input_path: Path
+    output_dir: Path
+    formats: List[str]
+    segments: List[Dict]
+    info: Dict
+    progress_stats: Dict
+    output_files: Dict[str, Path]
+    audio_duration: float
 
 
 def check_dependencies():
@@ -71,7 +99,7 @@ def check_dependencies():
     if missing:
         venv_python = check_and_suggest_venv()
         print(f"Erreur / Error: dépendances manquantes: {', '.join(missing)}")
-        
+
         if venv_python:
             print(f"\n⚠️  Un environnement virtuel local a été détecté dans tools/venv/")
             print(f"   Utilisez-le avec: {venv_python} scripts/transcribe.py --input \"fichier.mp4\"")
@@ -86,16 +114,42 @@ def check_dependencies():
         else:
             print(f"\nInstallez / Install with: pip install {' '.join(missing)}")
             print("\nOu exécutez le script d'installation: ./setup/install.sh (macOS/Linux) ou setup\\install.bat (Windows)")
-        
+
         sys.exit(1)
 
 
 # Vérification des dépendances au démarrage
-check_dependencies()
+if not SKIP_DEP_CHECK:
+    check_dependencies()
 
-# Imports après vérification
-from faster_whisper import WhisperModel
-from tqdm import tqdm
+# Imports après vérification (ou doublures pour les tests sans dépendances)
+if not SKIP_DEP_CHECK:
+    from faster_whisper import WhisperModel
+    from tqdm import tqdm
+else:
+    class WhisperModel:  # pragma: no cover - utilisé seulement quand on skip les deps
+        def __init__(self, *_, **__):
+            raise RuntimeError("WhisperModel indisponible (TRANSCRIBE_SKIP_DEPS=1)")
+
+    class _DummyTqdm:  # pragma: no cover - utilisé seulement quand on skip les deps
+        def __init__(self, *_, **__):
+            pass
+
+        def set_description(self, *_, **__):
+            pass
+
+        def update(self, *_, **__):
+            pass
+
+        def close(self):
+            pass
+
+        @staticmethod
+        def write(*_, **__):
+            pass
+
+    def tqdm(*args, **kwargs):  # pragma: no cover - utilisé seulement quand on skip les deps
+        return _DummyTqdm()
 
 
 # ============================================================================
@@ -212,19 +266,20 @@ def extract_audio(input_path: Path, output_wav: Path, ffmpeg_cmd: str, ffprobe_c
         "-ar", "16000",       # 16kHz
         "-c:a", "pcm_s16le",  # PCM 16-bit
     ]
-    
+
     if sample_minutes:
         cmd.extend(["-t", str(sample_minutes * 60)])
-    
+
     cmd.append(str(output_wav))
-    
+
     print(f"[ffmpeg] Extraction audio / Audio extraction → {output_wav.name}")
     result = subprocess.run(cmd, capture_output=True, text=True)
-    
+
     if result.returncode != 0:
-        print(f"Erreur ffmpeg / ffmpeg error:\n{result.stderr}")
-        sys.exit(1)
-    
+        error_msg = f"Erreur ffmpeg / ffmpeg error:\n{result.stderr}"
+        print(error_msg)
+        raise RuntimeError(error_msg)
+
     return probe_audio_duration(output_wav, ffprobe_cmd)
 
 
@@ -233,11 +288,18 @@ def extract_audio(input_path: Path, output_wav: Path, ffmpeg_cmd: str, ffprobe_c
 # ============================================================================
 
 class ProgressTracker:
-    """Suivi de progression avec stats détaillées et mise à jour périodique."""
+    """Suivi de progression avec stats détaillées et callback optionnel."""
 
-    def __init__(self, total_duration: float, update_interval: float = DEFAULT_UPDATE_INTERVAL):
+    def __init__(
+        self,
+        total_duration: float,
+        update_interval: float = DEFAULT_UPDATE_INTERVAL,
+        progress_callback: Optional[Callable[[Dict], None]] = None,
+        enable_console: bool = True,
+    ):
         self.total_duration = total_duration
         self.update_interval = update_interval
+        self.progress_callback = progress_callback
         self.start_time = time.time()
         self.last_update_time = self.start_time
         self.segments_count = 0
@@ -246,7 +308,7 @@ class ProgressTracker:
         self.last_text = ""
         self._elapsed_cache = 0.0  # Cache pour optimiser les calculs
 
-        # Barre de progression tqdm
+        # Barre de progression tqdm (masquable pour le mode API)
         self.pbar = tqdm(
             total=total_duration,
             unit="s",
@@ -254,8 +316,23 @@ class ProgressTracker:
             ncols=95,
             leave=True,
             dynamic_ncols=False,
+            disable=not enable_console,
         )
         self.pbar.set_description("Transcription")
+
+    def _emit_progress(self, event_type: str):
+        """Informe le callback externe de la progression actuelle."""
+        payload = {
+            "type": event_type,
+            "progress": (self.current_position / self.total_duration) if self.total_duration else 0.0,
+            "position": self.current_position,
+            "segments": self.segments_count,
+            "words": self.words_count,
+            "elapsed": time.time() - self.start_time,
+            "last_text": self.last_text,
+            "total": self.total_duration,
+        }
+        _safe_progress_callback(self.progress_callback, payload)
 
     def update(self, segment_end: float, text: str):
         """Met à jour la progression avec un nouveau segment."""
@@ -274,6 +351,7 @@ class ProgressTracker:
         if now - self.last_update_time >= self.update_interval:
             self._print_stats(now)
             self.last_update_time = now
+            self._emit_progress(event_type="progress")
 
     def _print_stats(self, current_time: float):
         """Affiche les stats détaillées (version simple et lisible)."""
@@ -317,18 +395,21 @@ class ProgressTracker:
             self.pbar.update(remaining)
 
         self.pbar.close()
+        self.current_position = max(self.current_position, self.total_duration)
 
         # Utilise le cache si disponible
         elapsed = self._elapsed_cache if self._elapsed_cache > 0 else (time.time() - self.start_time)
         speed = self.current_position / elapsed if elapsed > 0 else 0
 
-        return {
+        progress_stats = {
             "elapsed_time": elapsed,
             "speed": speed,
             "segments_count": self.segments_count,
             "words_count": self.words_count,
             "audio_duration": self.current_position,
         }
+        self._emit_progress(event_type="done")
+        return progress_stats
 
 
 # ============================================================================
@@ -345,6 +426,9 @@ def transcribe_audio(
     beam_size: int = 5,
     vad_filter: bool = True,
     model_dir: Optional[Path] = None,
+    update_interval: float = DEFAULT_UPDATE_INTERVAL,
+    progress_callback: Optional[Callable[[Dict], None]] = None,
+    console_progress: bool = True,
 ) -> Tuple[List[Dict], Dict, Dict]:
     """
     Transcrit l'audio avec faster-whisper.
@@ -365,6 +449,9 @@ def transcribe_audio(
     resolved_model_dir.mkdir(parents=True, exist_ok=True)
     local_model_path = resolved_model_dir / model_name
     model_source = str(local_model_path) if local_model_path.exists() else model_name
+
+    # Note: faster-whisper utilise huggingface-hub qui lit automatiquement HF_TOKEN depuis l'environnement
+    # Pour éviter le warning, définir: export HF_TOKEN="votre_token" (optionnel pour usage local)
 
     print(f"\n[whisper] Chargement modèle / Loading model {model_source} sur {device} ({compute_type})...")
     model = WhisperModel(
@@ -388,7 +475,12 @@ def transcribe_audio(
     )
 
     # Initialiser le tracker de progression
-    tracker = ProgressTracker(audio_duration)
+    tracker = ProgressTracker(
+        audio_duration,
+        update_interval=update_interval,
+        progress_callback=progress_callback,
+        enable_console=console_progress,
+    )
 
     segments = []
     try:
@@ -460,6 +552,128 @@ def write_json(segments: List[Dict], info: Dict, output_path: Path):
 
 
 # ============================================================================
+# PIPELINE PROGRAMMATIQUE
+# ============================================================================
+
+def transcribe_with_progress(
+    input_path: Path,
+    output_dir: Path,
+    config: TranscriptionConfig,
+    formats: Optional[List[str]] = None,
+    sample_minutes: Optional[float] = None,
+    progress_callback: Optional[Callable[[Dict], None]] = None,
+    append_input_stem: bool = True,
+    console_progress: Optional[bool] = None,
+) -> TranscriptionResult:
+    """
+    Transcrit un fichier avec callbacks de progression.
+
+    - input_path: chemin du fichier source
+    - output_dir: dossier de base où stocker les résultats
+    - formats: liste de formats à exporter (txt, srt, vtt, json)
+    - sample_minutes: couper l'audio pour des tests courts
+    - progress_callback: fonction appelée avec des dicts d'évènements
+    - append_input_stem: ajoute automatiquement le nom du fichier en sous-dossier
+    - console_progress: force l'affichage console tqdm (défaut: auto)
+    """
+    resolved_input = Path(input_path).resolve()
+    if not resolved_input.exists():
+        raise FileNotFoundError(f"Fichier introuvable: {resolved_input}")
+
+    normalized_formats = [f.strip().lower() for f in (formats or ["txt", "srt", "vtt", "json"]) if f.strip()]
+    resolved_output_dir = Path(output_dir).resolve()
+    target_out_dir = resolved_output_dir / resolved_input.stem if append_input_stem else resolved_output_dir
+    target_out_dir.mkdir(parents=True, exist_ok=True)
+
+    ffmpeg_cmd, ffprobe_cmd = detect_ffmpeg_binaries()
+    _safe_progress_callback(progress_callback, {"type": "stage", "stage": "prepare"})
+
+    suffix = resolved_input.suffix.lower()
+    use_temp_audio = True
+    if suffix == ".wav" and sample_minutes is None:
+        wav_path = resolved_input
+        audio_duration = probe_audio_duration(wav_path, ffprobe_cmd)
+        use_temp_audio = False
+    else:
+        wav_path = target_out_dir / "audio_temp.wav"
+        _safe_progress_callback(progress_callback, {"type": "stage", "stage": "extract"})
+        audio_duration = extract_audio(
+            resolved_input,
+            wav_path,
+            ffmpeg_cmd=ffmpeg_cmd,
+            ffprobe_cmd=ffprobe_cmd,
+            sample_minutes=sample_minutes,
+        )
+
+    if audio_duration <= 0:
+        raise RuntimeError("Impossible de déterminer la durée audio")
+
+    _safe_progress_callback(progress_callback, {
+        "type": "stage",
+        "stage": "transcribe",
+        "duration": audio_duration,
+    })
+
+    show_console = console_progress if console_progress is not None else progress_callback is None
+    segments, info, progress_stats = transcribe_audio(
+        wav_path=wav_path,
+        audio_duration=audio_duration,
+        model_name=config.model_name,
+        language=config.language,
+        device=config.device,
+        compute_type=config.compute_type,
+        beam_size=config.beam_size,
+        vad_filter=config.vad_filter,
+        model_dir=DEFAULT_MODEL_DIR,
+        update_interval=config.update_interval,
+        progress_callback=progress_callback,
+        console_progress=show_console,
+    )
+
+    _safe_progress_callback(progress_callback, {"type": "stage", "stage": "export"})
+    output_files: Dict[str, Path] = {}
+    if "txt" in normalized_formats:
+        path = target_out_dir / "transcript.txt"
+        write_txt(segments, path)
+        output_files["txt"] = path
+    if "srt" in normalized_formats:
+        path = target_out_dir / "transcript.srt"
+        write_srt(segments, path)
+        output_files["srt"] = path
+    if "vtt" in normalized_formats:
+        path = target_out_dir / "transcript.vtt"
+        write_vtt(segments, path)
+        output_files["vtt"] = path
+    if "json" in normalized_formats:
+        path = target_out_dir / "segments.json"
+        write_json(segments, info, path)
+        output_files["json"] = path
+
+    if use_temp_audio and wav_path.exists():
+        wav_path.unlink()
+
+    result = TranscriptionResult(
+        input_path=resolved_input,
+        output_dir=target_out_dir,
+        formats=normalized_formats,
+        segments=segments,
+        info=info,
+        progress_stats=progress_stats,
+        output_files=output_files,
+        audio_duration=audio_duration,
+    )
+
+    _safe_progress_callback(progress_callback, {
+        "type": "complete",
+        "output_dir": str(target_out_dir),
+        "formats": list(output_files.keys()),
+        "stats": progress_stats,
+        "info": info,
+    })
+    return result
+
+
+# ============================================================================
 # STATS FINALES
 # ============================================================================
 
@@ -469,7 +683,7 @@ def print_final_stats(segments: List[Dict], audio_duration: float, info: Dict, p
     transcribed_duration = segments[-1]["end"] if segments else 0
     elapsed = progress_stats.get("elapsed_time", 0)
     speed = progress_stats.get("speed", 0)
-    
+
     print("\n" + "═" * 60)
     print("          TRANSCRIPTION TERMINÉE / TRANSCRIPTION DONE")
     print("═" * 60)
@@ -590,18 +804,16 @@ Exemples:
         args.input = user_value
 
     config = create_config_from_args(args)
-    ffmpeg_cmd, ffprobe_cmd = detect_ffmpeg_binaries()
-    
+
     input_path = Path(args.input).resolve()
     if not input_path.exists():
         print(f"Erreur / Error: fichier introuvable / file not found: {input_path}")
         sys.exit(1)
-    
-    # Créer dossier de sortie
-    basename = input_path.stem
-    out_dir = Path(args.outdir).resolve() / basename
-    out_dir.mkdir(parents=True, exist_ok=True)
-    
+
+    base_out_dir = Path(args.outdir).resolve()
+    target_out_dir = base_out_dir / input_path.stem
+    formats = [f.strip().lower() for f in args.formats.split(",") if f.strip()]
+
     # En-tête
     print()
     print("╔" + "═" * 58 + "╗")
@@ -610,63 +822,28 @@ Exemples:
     print(f"║  Fichier/File : {input_path.name[:41]:<50}║")
     print(f"║  Modèle/Model : {args.model:<50}║")
     print(f"║  Langue/Lang  : {args.lang:<50}║")
-    print(f"║  Sortie/Out   : {str(out_dir)[-45:]:<50}║")
+    print(f"║  Sortie/Out   : {str(target_out_dir)[-45:]:<50}║")
     if args.sample:
         print(f"║  Sample   : {args.sample} min{' ' * 38}║")
     print("╚" + "═" * 58 + "╝")
-    
-    # Extraction audio (fichier temporaire si vidéo)
-    suffix = input_path.suffix.lower()
-    use_temp_audio = True
-    if suffix == ".wav" and args.sample is None:
-        wav_path = input_path
-        audio_duration = probe_audio_duration(wav_path, ffprobe_cmd)
-        use_temp_audio = False
-    else:
-        wav_path = out_dir / "audio_temp.wav"
-        audio_duration = extract_audio(input_path, wav_path, ffmpeg_cmd=ffmpeg_cmd, ffprobe_cmd=ffprobe_cmd, sample_minutes=args.sample)
-    
-    if audio_duration <= 0:
-        print("Erreur / Error: impossible de déterminer la durée audio / cannot read audio duration")
+    print("Astuce/Tip: laisse tourner; tu peux interrompre avec Ctrl+C (les segments déjà faits sont conservés).")
+
+    try:
+        result = transcribe_with_progress(
+            input_path=input_path,
+            output_dir=base_out_dir,
+            config=config,
+            formats=formats,
+            sample_minutes=args.sample,
+            append_input_stem=True,
+            console_progress=True,
+        )
+    except Exception as exc:
+        print(f"Erreur / Error: {exc}")
         sys.exit(1)
 
-    print(f"\n⏱️  Durée audio / Audio length: {format_duration(audio_duration)}. Début / Start...")
-    print("Astuce/Tip: laisse tourner; tu peux interrompre avec Ctrl+C (les segments déjà faits sont conservés).")
-    
-    # Transcription
-    segments, info, progress_stats = transcribe_audio(
-        wav_path=wav_path,
-        audio_duration=audio_duration,
-        model_name=config.model_name,
-        language=config.language,
-        device=config.device,
-        compute_type=config.compute_type,
-        beam_size=config.beam_size,
-        vad_filter=config.vad_filter,
-        model_dir=DEFAULT_MODEL_DIR,
-    )
-    
-    # Exports
-    formats = [f.strip().lower() for f in args.formats.split(",")]
-    print("\n[export] Génération des fichiers...")
-    
-    if "txt" in formats:
-        write_txt(segments, out_dir / "transcript.txt")
-    if "srt" in formats:
-        write_srt(segments, out_dir / "transcript.srt")
-    if "vtt" in formats:
-        write_vtt(segments, out_dir / "transcript.vtt")
-    if "json" in formats:
-        write_json(segments, info, out_dir / "segments.json")
-    
-    # Nettoyage audio temp
-    if use_temp_audio and wav_path.exists():
-        wav_path.unlink()
-    
-    # Stats finales
-    print_final_stats(segments, audio_duration, info, progress_stats)
-    
-    print(f"\n📁 Fichiers dans / Files in: {out_dir}\n")
+    print_final_stats(result.segments, result.audio_duration, result.info, result.progress_stats)
+    print(f"\n📁 Fichiers dans / Files in: {result.output_dir}\n")
 
 
 if __name__ == "__main__":

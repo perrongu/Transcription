@@ -40,6 +40,7 @@ Thumbs.db
 
 # Output files (transcription results)
 out/
+web/jobs/
 
 # Audio/Video files (don't commit media files)
 *.wav

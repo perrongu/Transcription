@@ -119,10 +119,10 @@ try:
     import faster_whisper
     from faster_whisper import WhisperModel
     print("  ✓ faster-whisper importé avec succès")
-    
+
     import tqdm
     print("  ✓ tqdm importé avec succès")
-    
+
     # Vérifier que le modèle existe
     from pathlib import Path
     model_dir = Path(r"$MODEL_DIR")
@@ -132,7 +132,7 @@ try:
     else:
         print(f"  ⚠ Modèle non trouvé dans {model_dir}")
         sys.exit(1)
-    
+
     print("  ✅ Toutes les vérifications passées")
 except ImportError as e:
     print(f"  ❌ Erreur d'import: {e}")

@@ -113,10 +113,10 @@ try:
     import faster_whisper
     from faster_whisper import WhisperModel
     print("  ✓ faster-whisper importé avec succès")
-    
+
     import tqdm
     print("  ✓ tqdm importé avec succès")
-    
+
     from pathlib import Path
     model_dir = Path(r"$ModelDir")
     model_files = list(model_dir.glob("*.bin")) + list(model_dir.glob("*.safetensors"))
@@ -125,7 +125,7 @@ try:
     else:
         print(f"  ⚠ Modèle non trouvé dans {model_dir}")
         sys.exit(1)
-    
+
     print("  ✅ Toutes les vérifications passées")
 except ImportError as e:
     print(f"  ❌ Erreur d'import: {e}")
