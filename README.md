@@ -1,21 +1,40 @@
 # Transcription Audio/Vidéo | Audio/Video Transcription
 
-**FR** : Transcription audio/vidéo 100% locale avec [faster-whisper](https://github.com/SYSTRAN/faster-whisper). Aucune donnée envoyée sur internet.  
+**FR** : Transcription audio/vidéo 100% locale avec [faster-whisper](https://github.com/SYSTRAN/faster-whisper). Aucune donnée envoyée sur internet.
 **EN** : 100% local audio/video transcription with [faster-whisper](https://github.com/SYSTRAN/faster-whisper). No data sent to the internet.
 
 ---
 
 ## 🎯 Pour les utilisateurs / For Users
 
-### Comment utiliser / How to use
+### Interfaces disponibles / Available interfaces
 
-**FR**  
-**Méthode recommandée (glisser-déposer)** :  
+- **Interface web locale** (nouveau) : lancer le serveur et utiliser une page web (FR/EN, drag & drop, progression en direct, téléchargements).
+- **Lanceurs classiques** : glisser-déposer sur `Transcrire.*` pour un usage en ligne de commande simplifié.
+
+### Interface web locale / Local web UI
+
+**FR**
+1) Lancer le serveur : `./Transcrire-Web.command` (macOS) · `./Transcrire-Web.sh` (Linux) · `Transcrire-Web.bat` (Windows)
+2) Ouvrir : http://localhost:8765
+3) Glisser-déposer un fichier, choisir modèle/langue, suivre la progression, télécharger les résultats (TXT/SRT/VTT/JSON).
+   - Bascule de langue dans l’UI (FR/EN) via le sélecteur sans drapeau.
+
+**EN**
+1) Start the server: `./Transcrire-Web.command` (macOS) · `./Transcrire-Web.sh` (Linux) · `Transcrire-Web.bat` (Windows)
+2) Open: http://localhost:8765
+3) Drag & drop a file, pick model/language, watch progress, download outputs (TXT/SRT/VTT/JSON).
+   - Language toggle (FR/EN) available in the UI (no flags).
+
+### Comment utiliser / How to use (lanceurs CLI)
+
+**FR**
+**Méthode recommandée (glisser-déposer)** :
 1. **Glisse-dépose** ton fichier audio/vidéo sur `Transcrire.bat` (Windows), `Transcrire.command` (macOS) ou `Transcrire.sh` (Linux)
 2. Attends que la transcription se termine
 3. Récupère les fichiers dans le dossier `out/<nom_du_fichier>/`
 
-**Méthode alternative (ligne de commande)** :  
+**Méthode alternative (ligne de commande)** :
 ```bash
 # macOS/Linux
 ./Transcrire.command "fichier.mp4"
@@ -26,13 +45,13 @@
 Transcrire.bat "fichier.mp4"
 ```
 
-**EN**  
-**Recommended method (drag and drop)** :  
+**EN**
+**Recommended method (drag and drop)** :
 1. **Drag and drop** your audio/video file onto `Transcrire.bat` (Windows), `Transcrire.command` (macOS) or `Transcrire.sh` (Linux)
 2. Wait for transcription to complete
 3. Find your files in `out/<file_name>/`
 
-**Alternative method (command line)** :  
+**Alternative method (command line)** :
 ```bash
 # macOS/Linux
 ./Transcrire.command "file.mp4"
@@ -54,14 +73,14 @@ Transcrire.bat "file.mp4"
 
 ### Conseils / Tips
 
-**FR**  
+**FR**
 - **Utilise toujours les lanceurs** (`Transcrire.command`, `Transcrire.sh`, `Transcrire.bat`) — ils utilisent automatiquement le bon Python avec les dépendances
 - Audio clair = meilleure transcription
 - La première transcription peut prendre du temps (chargement du modèle)
 - Tu peux interrompre avec `Ctrl+C` : les segments déjà faits sont conservés
 - Si tu vois une erreur "dépendances manquantes", le script te dira automatiquement quelle commande utiliser
 
-**EN**  
+**EN**
 - **Always use the launchers** (`Transcrire.command`, `Transcrire.sh`, `Transcrire.bat`) — they automatically use the correct Python with dependencies
 - Clear audio = better transcription
 - First transcription may take time (model loading)
@@ -74,7 +93,7 @@ Transcrire.bat "file.mp4"
 
 ### Installation (une seule fois / one time only)
 
-**FR**  
+**FR**
 1. Télécharge le projet (ZIP ou `git clone`)
 2. Exécute le script d'installation :
 
@@ -85,7 +104,7 @@ Transcrire.bat "file.mp4"
 
 3. C'est terminé. Le dossier est prêt à être distribué aux utilisateurs.
 
-**EN**  
+**EN**
 1. Download the project (ZIP or `git clone`)
 2. Run the installation script:
 
@@ -105,10 +124,10 @@ Transcrire.bat "file.mp4"
 
 ### Distribution aux utilisateurs / Distribution to users
 
-**FR**  
+**FR**
 Copiez le dossier complet (incluant `tools/` et `models/`) sur les postes utilisateurs. Les utilisateurs n'ont besoin que de glisser-déposer leurs fichiers sur les lanceurs.
 
-**EN**  
+**EN**
 Copy the entire folder (including `tools/` and `models/`) to user workstations. Users only need to drag and drop files onto the launchers.
 
 ### Structure du projet après installation / Project structure after installation
@@ -120,7 +139,7 @@ Transcription/
 ├── Transcrire.sh           # Lanceur Linux / Linux launcher
 ├── setup/
 │   ├── install.bat         # Script IT Windows
-│   ├── install.ps1         
+│   ├── install.ps1
 │   └── install.sh          # Script IT macOS/Linux
 ├── tools/                  # Créé par l'installation / Created by installation
 │   ├── python/             # Python embeddable (Windows uniquement)
@@ -136,30 +155,35 @@ Transcription/
 
 ### Configuration réseau / Network configuration
 
-**FR**  
+**FR**
 - L'installation nécessite un accès internet pour télécharger Python, ffmpeg et le modèle Whisper
 - Après installation, **aucun accès internet n'est requis**
 - Les proxies HTTP_PROXY/HTTPS_PROXY sont détectés automatiquement lors de l'installation
 - Pour un réseau très restrictif : téléchargez manuellement les fichiers et placez-les dans les dossiers appropriés
 
-**EN**  
+**EN**
 - Installation requires internet access to download Python, ffmpeg and Whisper model
 - After installation, **no internet access is required**
 - HTTP_PROXY/HTTPS_PROXY proxies are automatically detected during installation
 - For very restrictive networks: manually download files and place them in appropriate folders
 
+### Lancement rapide après installation / Quick launch after install
+
+- **Web UI** : `./Transcrire-Web.command` (macOS) · `./Transcrire-Web.sh` (Linux) · `Transcrire-Web.bat` (Windows) puis ouvrir http://localhost:8765
+- **CLI** : glisser-déposer sur `Transcrire.*` ou appeler `tools/venv/bin/python scripts/transcribe.py --input ...`
+
 ---
 
 ## 🔒 Confidentialité / Privacy
 
-**FR**  
-✅ Traitement 100% local — Aucune donnée transmise à l'extérieur  
-✅ Aucune API requise — Fonctionne hors ligne après installation  
+**FR**
+✅ Traitement 100% local — Aucune donnée transmise à l'extérieur
+✅ Aucune API requise — Fonctionne hors ligne après installation
 ✅ Pas de télémétrie — Aucun tracking, aucune collecte de données
 
-**EN**  
-✅ 100% local processing — No data transmitted externally  
-✅ No API required — Works offline after installation  
+**EN**
+✅ 100% local processing — No data transmitted externally
+✅ No API required — Works offline after installation
 ✅ No telemetry — No tracking, no data collection
 
 ---
@@ -168,7 +192,7 @@ Transcription/
 
 ### Utilisation directe du script Python / Direct Python script usage
 
-**FR**  
+**FR**
 Si tu veux utiliser directement le script Python (au lieu des lanceurs), tu dois utiliser le Python du venv local :
 
 ```bash
@@ -181,7 +205,7 @@ tools\venv\Scripts\python.exe scripts\transcribe.py --input "fichier.mp4"
 
 **⚠️ Important** : N'utilise **pas** `python3 scripts/transcribe.py` directement — cela utilise le Python système qui n'a pas les dépendances installées. Si tu essaies, le script détectera automatiquement le venv local et t'indiquera la bonne commande à utiliser.
 
-**EN**  
+**EN**
 If you want to use the Python script directly (instead of the launchers), you must use the Python from the local venv:
 
 ```bash
@@ -210,7 +234,7 @@ tools\venv\Scripts\python.exe scripts\transcribe.py --input "file.mp4"
 
 ### Exemples / Examples
 
-**FR**  
+**FR**
 **Avec les lanceurs (recommandé)** :
 ```bash
 # Test rapide (3 premières minutes)
@@ -235,7 +259,7 @@ tools/venv/bin/python scripts/transcribe.py -i "interview.mp4" -l en --beam-size
 tools/venv/bin/python scripts/transcribe.py -i "video.mp4" --formats srt
 ```
 
-**EN**  
+**EN**
 **With launchers (recommended)** :
 ```bash
 # Quick test (first 3 minutes)
@@ -285,7 +309,7 @@ tools/venv/bin/python scripts/transcribe.py -i "video.mp4" --formats srt
 
 ### Détection automatique du venv / Automatic venv detection
 
-**FR**  
+**FR**
 Si tu utilises `python3 scripts/transcribe.py` directement et que les dépendances manquent, le script détecte automatiquement le venv local dans `tools/venv/` et affiche la commande exacte à utiliser :
 
 ```
@@ -293,7 +317,7 @@ Si tu utilises `python3 scripts/transcribe.py` directement et que les dépendanc
    Utilisez-le avec: tools/venv/bin/python scripts/transcribe.py --input "fichier.mp4"
 ```
 
-**EN**  
+**EN**
 If you use `python3 scripts/transcribe.py` directly and dependencies are missing, the script automatically detects the local venv in `tools/venv/` and displays the exact command to use:
 
 ```
@@ -316,3 +340,21 @@ Ce projet utilise [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (l
 ## 🤝 Contribution / Contributing
 
 Les contributions sont les bienvenues ! / Contributions are welcome!
+
+### Préparer ton environnement dev
+
+- Installer les outils de vérification locaux : `pip install -r requirements.txt && pip install pre-commit`
+- Activer les hooks : `pre-commit install` (optionnel mais recommandé)
+- Tests rapides (sans dépendances lourdes) : `TRANSCRIBE_SKIP_DEPS=1 pytest -q`
+
+### Structure (rappel)
+
+```
+Transcription/
+├── Transcrire-Web.*       # Lanceurs interface web locale
+├── web/
+│   ├── app.py             # FastAPI + SSE + download
+│   └── static/index.html  # UI (FR/EN, drag&drop, progression)
+├── Transcrire.*           # Lanceurs CLI
+└── scripts/transcribe.py  # Noyau de transcription (réutilisé par l’API)
+```
