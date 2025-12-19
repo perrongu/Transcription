@@ -83,6 +83,10 @@ class TranscriptionResult:
     audio_duration: float
 
 
+class TranscriptionCancelled(Exception):
+    """Exception levée lorsque l'utilisateur annule la transcription."""
+
+
 def check_dependencies():
     """Check required Python deps, guide beginners."""
     missing = []
@@ -429,6 +433,7 @@ def transcribe_audio(
     update_interval: float = DEFAULT_UPDATE_INTERVAL,
     progress_callback: Optional[Callable[[Dict], None]] = None,
     console_progress: bool = True,
+    cancel_checker: Optional[Callable[[], bool]] = None,
 ) -> Tuple[List[Dict], Dict, Dict]:
     """
     Transcrit l'audio avec faster-whisper.
@@ -452,6 +457,14 @@ def transcribe_audio(
 
     # Note: faster-whisper utilise huggingface-hub qui lit automatiquement HF_TOKEN depuis l'environnement
     # Pour éviter le warning, définir: export HF_TOKEN="votre_token" (optionnel pour usage local)
+
+    _safe_progress_callback(progress_callback, {
+        "type": "stage",
+        "stage": "load_model",
+        "model": model_source,
+        "device": device,
+        "compute_type": compute_type,
+    })
 
     print(f"\n[whisper] Chargement modèle / Loading model {model_source} sur {device} ({compute_type})...")
     model = WhisperModel(
@@ -485,6 +498,8 @@ def transcribe_audio(
     segments = []
     try:
         for seg in segments_gen:
+            if cancel_checker and cancel_checker():
+                raise TranscriptionCancelled("Cancelled by user")
             segments.append({
                 "id": seg.id,
                 "start": seg.start,
@@ -495,6 +510,10 @@ def transcribe_audio(
     except KeyboardInterrupt:
         print("\n\nInterruption détectée, arrêt propre de la transcription...")
         tqdm.write("Sauvegarde des segments déjà traités...")
+        raise
+    except TranscriptionCancelled:
+        tqdm.write("Transcription annulée par l'utilisateur.")
+        raise
 
     progress_stats = tracker.finish()
 
@@ -564,6 +583,7 @@ def transcribe_with_progress(
     progress_callback: Optional[Callable[[Dict], None]] = None,
     append_input_stem: bool = True,
     console_progress: Optional[bool] = None,
+    cancel_checker: Optional[Callable[[], bool]] = None,
 ) -> TranscriptionResult:
     """
     Transcrit un fichier avec callbacks de progression.
@@ -628,6 +648,7 @@ def transcribe_with_progress(
         update_interval=config.update_interval,
         progress_callback=progress_callback,
         console_progress=show_console,
+        cancel_checker=cancel_checker,
     )
 
     _safe_progress_callback(progress_callback, {"type": "stage", "stage": "export"})

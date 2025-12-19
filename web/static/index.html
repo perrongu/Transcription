@@ -21,6 +21,12 @@
     .accent-gradient { background: linear-gradient(120deg, var(--accent), var(--accent-2)); }
     .lang-toggle button { transition: all 0.2s ease; }
     .lang-toggle .active { background: rgba(34,211,238,0.15); border-color: rgba(34,211,238,0.6); color: #e0f2fe; }
+    .btn-disabled { opacity: 0.45; cursor: not-allowed; filter: saturate(0.2) brightness(0.9); pointer-events: none; }
+    .progress-emphasis { box-shadow: 0 0 0 2px rgba(34,211,238,0.25), 0 25px 60px rgba(56,189,248,0.16); border-color: rgba(56,189,248,0.4); }
+    .progress-bar-stripes { background-image: linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%, transparent); background-size: 28px 28px; animation: move 1.4s linear infinite; position: relative; }
+    .progress-glow::after { content: ""; position: absolute; top: 0; left: -80px; width: 120px; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent); animation: sweep 1.3s ease-in-out infinite; }
+    @keyframes move { 0% { background-position: 0 0; } 100% { background-position: 28px 0; } }
+    @keyframes sweep { 0% { transform: translateX(0); opacity: 0.8; } 50% { opacity: 1; } 100% { transform: translateX(180%); opacity: 0.1; } }
   </style>
 </head>
 <body class="pb-16">
@@ -52,15 +58,25 @@
       <section class="card glass p-6 rounded-2xl lg:col-span-3">
         <div id="dropzone" class="border-2 border-dashed border-slate-600 rounded-xl p-6 sm:p-8 text-center transition hover:border-sky-300 hover:bg-white/5 cursor-pointer" role="button" tabindex="0" aria-label="Zone de dépôt de fichier. Glisser-déposer ou cliquer pour sélectionner un fichier audio ou vidéo.">
           <input id="file-input" type="file" class="hidden" accept="audio/*,video/*" aria-label="Sélectionner un fichier audio ou vidéo" />
-          <div class="flex flex-col items-center gap-3 pointer-events-none">
+          <div id="drop-content" class="flex flex-col items-center gap-3 pointer-events-none">
             <div class="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center accent-gradient text-slate-900 font-semibold shadow-lg" aria-hidden="true">＋</div>
             <p class="text-lg font-semibold text-white" data-i18n="dropTitle">Glisser-déposer un fichier</p>
             <p class="text-slate-400 text-sm" data-i18n="dropSubtitle">Ou clique pour parcourir. Formats audio/vidéo supportés (mp3, wav, mp4, mkv...)</p>
             <p id="selected-file" class="text-sky-200 font-medium" aria-live="polite"></p>
           </div>
+          <div id="drop-selected" class="hidden">
+            <div class="flex items-center justify-center gap-3 bg-emerald-500/10 border border-emerald-300/40 rounded-lg px-4 py-3 text-emerald-100">
+              <span class="text-xl">✔</span>
+              <div class="text-left">
+                <p class="text-sm text-emerald-200" data-i18n="fileReady">Fichier prêt</p>
+                <p id="selected-file-strong" class="font-semibold text-white truncate max-w-md"></p>
+              </div>
+              <button id="clear-file" class="ml-3 text-xs uppercase tracking-wide bg-emerald-400/20 hover:bg-emerald-400/30 border border-emerald-300/50 text-emerald-50 px-3 py-1 rounded-md transition" type="button" data-i18n="clearFile">Retirer</button>
+            </div>
+          </div>
         </div>
 
-        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div id="options-panel" class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="card glass p-4 rounded-xl">
             <label class="block text-sm text-slate-300 mb-2" data-i18n="modelLabel">Modèle</label>
             <select id="model" class="w-full bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:border-sky-300">
@@ -114,11 +130,14 @@
           </div>
         </div>
 
-        <button id="start-btn" class="mt-6 w-full accent-gradient text-slate-900 font-semibold py-3 rounded-xl shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 transition active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-800" data-i18n="startButton" aria-label="Lancer la transcription du fichier sélectionné">Lancer la transcription</button>
+        <div class="flex flex-col sm:flex-row gap-3 mt-6">
+          <button id="start-btn" class="flex-1 accent-gradient text-slate-900 font-semibold py-3 rounded-xl shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 transition active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-800 btn-disabled" data-i18n="startButton" aria-label="Lancer la transcription du fichier sélectionné" disabled>Lancer la transcription</button>
+          <button id="cancel-btn" class="px-4 py-3 rounded-xl border border-rose-500/50 text-rose-100 bg-rose-500/10 hover:bg-rose-500/20 transition font-semibold hidden" type="button" data-i18n="cancelButton">Annuler</button>
+        </div>
       </section>
 
       <section class="lg:col-span-2 flex flex-col gap-4">
-        <div class="card glass rounded-2xl p-6">
+        <div id="progress-card" class="card glass rounded-2xl p-6 transition-all duration-300">
           <div class="flex items-center justify-between mb-3">
             <p class="text-sm uppercase tracking-[0.25em] text-slate-400" data-i18n="progressionTitle">Progression</p>
             <span id="status-pill" class="px-3 py-1 text-xs rounded-full bg-slate-700 text-slate-200" data-i18n="statusWaiting">En attente</span>
@@ -126,6 +145,7 @@
           <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden">
             <div id="progress-bar" class="h-full accent-gradient w-0 transition-all duration-500"></div>
           </div>
+          <p id="stage-text" class="mt-3 text-sm text-slate-300" data-i18n="stageIdle">En attente de lancement</p>
           <div class="mt-4 text-sm text-slate-300 space-y-1">
             <p><span class="text-slate-400" data-i18n="progressLabel">Avancement :</span> <span id="progress-text">0%</span></p>
             <p><span class="text-slate-400" data-i18n="lastSegmentLabel">Dernier segment :</span> <span id="last-text" class="text-slate-100">—</span></p>
@@ -191,7 +211,14 @@
         fileTooLarge: "Fichier trop volumineux (max {max} GB)",
         formatUnsupported: "Format non supporté. Formats acceptés: {exts}",
         streamLost: "Connexion perdue. Vérifiez le statut du job.",
+        fileReady: "Fichier prêt",
+        clearFile: "Retirer",
+        cancelButton: "Annuler",
+        stageIdle: "En attente de lancement",
+        stageRunning: "Tâche en cours...",
+        stageCancelled: "Annulé",
         stage_prepare: "Préparation",
+        stage_load_model: "Chargement du modèle...",
         stage_extract: "Extraction audio",
         stage_transcribe: "Transcription",
         stage_export: "Export des fichiers",
@@ -236,7 +263,14 @@
         fileTooLarge: "File too large (max {max} GB)",
         formatUnsupported: "Unsupported format. Accepted: {exts}",
         streamLost: "Connection lost. Check the job status.",
+        fileReady: "File ready",
+        clearFile: "Remove",
+        cancelButton: "Cancel",
+        stageIdle: "Waiting to start",
+        stageRunning: "Job running...",
+        stageCancelled: "Cancelled",
         stage_prepare: "Preparing",
+        stage_load_model: "Loading model...",
         stage_extract: "Extracting audio",
         stage_transcribe: "Transcribing",
         stage_export: "Exporting files",
@@ -245,8 +279,13 @@
     };
 
     const dropzone = document.getElementById('dropzone');
+    const dropContent = document.getElementById('drop-content');
+    const dropSelected = document.getElementById('drop-selected');
     const fileInput = document.getElementById('file-input');
     const selectedFile = document.getElementById('selected-file');
+    const selectedFileStrong = document.getElementById('selected-file-strong');
+    const clearFileBtn = document.getElementById('clear-file');
+    const optionsPanel = document.getElementById('options-panel');
     const startBtn = document.getElementById('start-btn');
     const statusPill = document.getElementById('status-pill');
     const progressBar = document.getElementById('progress-bar');
@@ -259,6 +298,9 @@
     const outputHint = document.getElementById('output-hint');
     const langFrBtn = document.getElementById('lang-fr');
     const langEnBtn = document.getElementById('lang-en');
+    const stageText = document.getElementById('stage-text');
+    const progressCard = document.getElementById('progress-card');
+    const cancelBtn = document.getElementById('cancel-btn');
 
     let currentFile = null;
     let currentJobId = null;
@@ -266,6 +308,23 @@
     let enabledFormats = [];
     let currentLang = 'fr';
     let currentStatusKey = 'statusWaiting';
+    let jobRunning = false;
+
+    function updateStartButtonState() {
+      const disabled = !currentFile || jobRunning;
+      startBtn.disabled = disabled;
+      startBtn.classList.toggle('btn-disabled', disabled);
+    }
+
+    function toggleInputs(visible) {
+      if (visible) {
+        dropzone.classList.remove('hidden');
+        optionsPanel.classList.remove('hidden');
+      } else {
+        dropzone.classList.add('hidden');
+        optionsPanel.classList.add('hidden');
+      }
+    }
 
     function tr(key) {
       return i18n[currentLang][key] || key;
@@ -287,6 +346,7 @@
       outputHint.textContent = outputHint.dataset.state === 'ready' ? tr('outputHintReady') : tr('outputHintWaiting');
       langFrBtn.classList.toggle('active', currentLang === 'fr');
       langEnBtn.classList.toggle('active', currentLang === 'en');
+      stageText.textContent = jobRunning ? tr('stageRunning') : tr('stageIdle');
     }
 
     function setStatus(key, tone = 'neutral') {
@@ -299,6 +359,13 @@
         error: 'bg-rose-500/20 text-rose-200 border border-rose-400/30',
       };
       statusPill.className = `px-3 py-1 text-xs rounded-full ${tones[tone]}`;
+      if (tone === 'active') {
+        progressCard.classList.add('progress-emphasis');
+        progressBar.classList.add('progress-bar-stripes', 'progress-glow');
+      } else if (tone === 'done' || tone === 'error' || tone === 'neutral') {
+        progressCard.classList.remove('progress-emphasis');
+        progressBar.classList.remove('progress-bar-stripes', 'progress-glow');
+      }
     }
 
     function resetUI() {
@@ -316,6 +383,11 @@
       outputHint.textContent = tr('outputHintWaiting');
       outputHint.dataset.state = 'waiting';
       setStatus('statusWaiting', 'neutral');
+      stageText.textContent = tr('stageIdle');
+      jobRunning = false;
+      cancelBtn.classList.add('hidden');
+      cancelBtn.disabled = true;
+      updateStartButtonState();
     }
 
     const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2 GB
@@ -350,11 +422,32 @@
 
       currentFile = file;
       selectedFile.textContent = file.name;
+      selectedFileStrong.textContent = file.name;
+      dropzone.classList.add('border-emerald-400', 'bg-emerald-500/5', 'shadow-lg', 'shadow-emerald-500/20');
+      dropContent.classList.add('hidden');
+      dropSelected.classList.remove('hidden');
       errorMsg.classList.add('hidden');
+      updateStartButtonState();
     }
 
-    dropzone.addEventListener('click', () => fileInput.click());
+    function clearFile() {
+      currentFile = null;
+      fileInput.value = '';
+      selectedFile.textContent = '';
+      selectedFileStrong.textContent = '';
+      dropzone.classList.remove('border-emerald-400', 'bg-emerald-500/5', 'shadow-lg', 'shadow-emerald-500/20');
+      dropContent.classList.remove('hidden');
+      dropSelected.classList.add('hidden');
+      updateStartButtonState();
+    }
+
+    dropzone.addEventListener('click', (e) => {
+      if (currentFile) return;
+      if (e.target.closest('#clear-file')) return;
+      fileInput.click();
+    });
     dropzone.addEventListener('keydown', (e) => {
+      if (currentFile) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         fileInput.click();
@@ -373,6 +466,10 @@
       if (e.dataTransfer.files.length > 0) {
         attachFile(e.dataTransfer.files[0]);
       }
+    });
+    clearFileBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      clearFile();
     });
 
     function collectFormats() {
@@ -405,6 +502,7 @@
       const stage = payload.stage || 'prepare';
       const map = {
         prepare: 'stage_prepare',
+        load_model: 'stage_load_model',
         extract: 'stage_extract',
         transcribe: 'stage_transcribe',
         export: 'stage_export',
@@ -413,29 +511,78 @@
       const key = map[stage] || 'statusActive';
       const tone = stage === 'complete' ? 'done' : 'active';
       setStatus(key, tone);
+      stageText.textContent = tr(key === 'statusActive' ? 'stageRunning' : key);
     }
 
     function listenProgress(jobId, retryCount = 0) {
-      if (evtSource) evtSource.close();
+      // Nettoyer le timeout de retry précédent si existant
+      if (window.currentRetryTimeout) {
+        clearTimeout(window.currentRetryTimeout);
+        window.currentRetryTimeout = null;
+      }
+      if (evtSource) {
+        evtSource.close();
+        evtSource = null;
+      }
       const maxRetries = 3;
       evtSource = new EventSource(`/api/progress/${jobId}`);
 
       const onMessage = (event) => {
         try {
           const payload = JSON.parse(event.data);
+          // Ignorer les heartbeats (juste pour maintenir la connexion)
+          if (payload.type === 'heartbeat') {
+            return;
+          }
           if (payload.type === 'progress' || payload.type === 'done') handleProgress(payload);
           if (payload.type === 'stage') handleStage(payload);
           if (payload.type === 'complete') {
             handleProgress({ progress: 1, segments: payload.segments, words: payload.words, last_text: payload.last_text });
             setStatus('statusDone', 'done');
-            evtSource.close();
+            if (evtSource) {
+              evtSource.close();
+              evtSource = null;
+            }
             updateDownloads(jobId, payload.formats || enabledFormats);
+            jobRunning = false;
+            cancelBtn.classList.add('hidden');
+            cancelBtn.disabled = true;
+            stageText.textContent = tr('stage_complete');
+            updateStartButtonState();
+            toggleInputs(true);
           }
           if (payload.type === 'error') {
             setStatus('statusError', 'error');
-            errorMsg.textContent = payload.message || tr('errorGeneric');
+            // Sanitizer basique pour éviter XSS (textContent échappe déjà, mais on limite la longueur)
+            const errorText = (payload.message || tr('errorGeneric')).substring(0, 500);
+            errorMsg.textContent = errorText;
             errorMsg.classList.remove('hidden');
-            evtSource.close();
+            if (evtSource) {
+              evtSource.close();
+              evtSource = null;
+            }
+            jobRunning = false;
+            cancelBtn.classList.add('hidden');
+            cancelBtn.disabled = true;
+            stageText.textContent = tr('stageIdle');
+            updateStartButtonState();
+            toggleInputs(true);
+          }
+          if (payload.type === 'cancelled') {
+            setStatus('stageCancelled', 'neutral');
+            errorMsg.textContent = '';
+            errorMsg.classList.add('hidden');
+            if (evtSource) {
+              evtSource.close();
+              evtSource = null;
+            }
+            jobRunning = false;
+            cancelBtn.classList.add('hidden');
+            cancelBtn.disabled = true;
+            stageText.textContent = tr('stageCancelled');
+            clearFile();
+            updateStartButtonState();
+            toggleInputs(true);
           }
         } catch (err) {
           console.warn('SSE payload invalide', err);
@@ -448,10 +595,18 @@
       });
 
       evtSource.onerror = () => {
-        evtSource.close();
+        if (evtSource) {
+          evtSource.close();
+          evtSource = null;
+        }
         if (retryCount < maxRetries) {
           setStatus('statusReconnecting', 'active');
-          setTimeout(() => listenProgress(jobId, retryCount + 1), 1000 * (retryCount + 1));
+          const retryTimeout = setTimeout(() => {
+            listenProgress(jobId, retryCount + 1);
+          }, 1000 * (retryCount + 1));
+          // Stocker le timeout pour pouvoir l'annuler si nécessaire
+          if (window.currentRetryTimeout) clearTimeout(window.currentRetryTimeout);
+          window.currentRetryTimeout = retryTimeout;
         } else {
           setStatus('statusStreamError', 'error');
           errorMsg.textContent = tr('streamLost');
@@ -476,7 +631,14 @@
 
       resetUI();
       startBtn.disabled = true;
+      startBtn.classList.add('btn-disabled');
       setStatus('statusUploading', 'active');
+      stageText.textContent = tr('stageRunning');
+      jobRunning = true;
+      cancelBtn.classList.remove('hidden');
+      cancelBtn.disabled = false;
+      updateStartButtonState();
+      toggleInputs(false);
 
       const form = new FormData();
       form.append('file', currentFile);
@@ -490,21 +652,29 @@
       const sample = document.getElementById('sample').value;
       if (sample) {
         const sampleNum = parseFloat(sample);
-        if (sampleNum > 0) {
+        // Validation: doit être un nombre valide, positif et raisonnable (< 7 jours)
+        if (!isNaN(sampleNum) && isFinite(sampleNum) && sampleNum > 0 && sampleNum <= 10080) {
           form.append('sample_minutes', sampleNum);
+        } else if (sampleNum > 0) {
+          // Avertir l'utilisateur mais ne pas bloquer
+          console.warn('sample_minutes invalide, ignoré:', sampleNum);
         }
       }
 
+      let timeoutId = null;
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 min timeout
+        timeoutId = setTimeout(() => controller.abort(), 300000); // 5 min timeout
 
         const res = await fetch('/api/transcribe', {
           method: 'POST',
           body: form,
           signal: controller.signal,
         });
-        clearTimeout(timeoutId);
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
 
         if (!res.ok) {
           let msg = 'Impossible de lancer la transcription';
@@ -522,16 +692,24 @@
         setStatus('statusActive', 'active');
         listenProgress(currentJobId);
       } catch (err) {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         console.error(err);
         setStatus('statusError', 'error');
         if (err.name === 'AbortError') {
           errorMsg.textContent = tr('errorTimeout');
         } else {
-          errorMsg.textContent = err.message || tr('errorUpload');
+          // Sanitizer basique pour éviter XSS
+          const errorText = (err.message || tr('errorUpload')).substring(0, 500);
+          errorMsg.textContent = errorText;
         }
         errorMsg.classList.remove('hidden');
-      } finally {
-        startBtn.disabled = false;
+        clearFile();
+        toggleInputs(true);
+        jobRunning = false;
+        updateStartButtonState();
       }
     }
 
@@ -543,6 +721,25 @@
     startBtn.addEventListener('click', startJob);
     langFrBtn.addEventListener('click', () => setLang('fr'));
     langEnBtn.addEventListener('click', () => setLang('en'));
+    cancelBtn.addEventListener('click', async () => {
+      if (!currentJobId) {
+        clearFile();
+        return;
+      }
+      cancelBtn.disabled = true;
+      try {
+        await fetch(`/api/cancel/${currentJobId}`, { method: 'POST' });
+      } catch (err) {
+        console.error('Cancel failed', err);
+      } finally {
+        setStatus('stageCancelled', 'neutral');
+        stageText.textContent = tr('stageCancelled');
+        jobRunning = false;
+        clearFile();
+        updateStartButtonState();
+        toggleInputs(true);
+      }
+    });
     applyTranslations();
     resetUI();
   </script>
